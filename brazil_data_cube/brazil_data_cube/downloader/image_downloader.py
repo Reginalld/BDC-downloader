@@ -5,6 +5,12 @@ import requests
 from tqdm import tqdm
 import logging
 from typing import Optional
+from brazil_data_cube.utils.bdc_connection import BdcConnection
+from brazil_data_cube.downloader.fetcher import SatelliteImageFetcher
+from brazil_data_cube.utils.bounding_box_handler import BoundingBoxHandler
+from brazil_data_cube.processors.tile_processor import TileProcessor
+from brazil_data_cube.downloader.download_bandas import DownloadBandas
+from brazil_data_cube.config import REDUCTION_FACTOR
 
 
 logger = logging.getLogger(__name__)
@@ -43,6 +49,7 @@ class ImagemDownloader:
             total_bytes = int(response.headers.get('content-length', 0))
             chunk_size = 1024 * 16
 
+            #Baixa o conteúdo em partes com barra de progresso
             with tqdm.wrapattr(open(filepath, 'wb'), 'write', miniters=1, total=total_bytes, desc=os.path.basename(filepath)) as fout:
                 for chunk in response.iter_content(chunk_size=chunk_size):
                     fout.write(chunk)
@@ -53,3 +60,96 @@ class ImagemDownloader:
         except Exception as e:
             logger.error(f"Erro ao fazer download da imagem: {str(e)}")
             raise RuntimeError(f"Erro ao fazer download da imagem: {e}")
+        
+
+    def executar_download(
+            self,
+            satelite: str,
+            lat: Optional[float],
+            lon: Optional[float],
+            tile_id: Optional[str],
+            radius_km: Optional[float],
+            start_date: str,
+            end_date: str,
+            tile_grid_path: str,
+            max_cloud_cover: float
+        ) -> None:
+            """
+            Executa todo o processo de busca, download e preparação da imagem.
+
+            Args:
+                satelite (str): Nome da coleção do satélite (ex: "S2_L2A-1").
+                lat (float | None): Latitude do ponto central (se aplicável).
+                lon (float | None): Longitude do ponto central (se aplicável).
+                tile_id (str | None): ID do tile Sentinel ou nome do estado ("Paraná").
+                radius_km (float | None): Raio de busca ao redor do ponto, em km.
+                start_date (str): Data inicial no formato YYYY-MM-DD.
+                end_date (str): Data final no formato YYYY-MM-DD.
+                tile_grid_path (str): Caminho para o shapefile dos tiles.
+                max_cloud_cover (float): Porcentagem máxima de cobertura de nuvens permitida.
+            """
+            # Conexão com o BDC (Brazil Data Cube)
+            bdc_conn = BdcConnection().get_connection()
+
+            # Objeto responsável por buscar imagens via STAC
+            fetcher = SatelliteImageFetcher(bdc_conn)
+
+            # Utilitário para gerar bounding box
+            bbox_handler = BoundingBoxHandler(reduction_factor=REDUCTION_FACTOR)
+
+            # Se for o estado do Paraná, delega ao TileProcessor
+            if tile_id in ["Paraná", "parana"]:
+                logger.info("Iniciando tiles do Paraná")
+                TileProcessor(
+                    fetcher,
+                    self,  # passa o downloader atual
+                    self.output_dir,
+                    tile_grid_path,
+                    max_cloud_cover
+                ).processar_tiles_parana(satelite, start_date, end_date)
+                return
+
+            logger.info(tile_id)
+
+            # Gera a bounding box com base nas coordenadas ou tile_id
+            main_bbox, lat_final, lon_final, radius_final = bbox_handler.obter_bounding_box(
+                tile_id, lat, lon, radius_km, tile_grid_path
+            )
+
+            # Busca as imagens dentro dos critérios definidos
+            image_assets = fetcher.fetch_image(
+                satelite,
+                main_bbox,
+                start_date,
+                end_date,
+                max_cloud_cover,
+                tile_grid_path,
+                tile_id or ""
+            )
+
+            if not image_assets:
+                print("Nenhuma imagem encontrada.")
+                return
+
+            # Prefixo base para nomear arquivos
+            prefixo = (
+                f"{tile_id}_{radius_final:.2f}KM_{satelite}_{start_date}_{end_date}"
+                if tile_id else
+                f"{radius_final:.2f}KM_{satelite}_{lat_final:.3f}_{lon_final:.3f}_{start_date}_{end_date}"
+            )
+
+            # Faz o download das bandas RGB
+            arquivos_baixados = DownloadBandas.baixar_bandas(image_assets, self, prefixo)
+
+            # Define o nome do arquivo final
+            output_name = (
+                f"{radius_final:.2f}KM_{satelite}_{tile_id}_{start_date}_{end_date}_RGB.tif"
+                if tile_id else
+                f"{radius_final:.2f}KM_{satelite}_{lat_final:.3f}_{lon_final:.3f}_{start_date}_{end_date}_RGB.tif"
+            )
+
+            # Caminho completo do arquivo final
+            output_path = os.path.join(self.output_dir, output_name)
+
+            # Aqui poderia vir o merge das bandas RGB se necessário
+            # ImageProcessor(satelite).merge_rgb_tif(..., output_path)
