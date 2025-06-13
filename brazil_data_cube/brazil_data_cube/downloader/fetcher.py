@@ -37,14 +37,16 @@ class SatelliteImageFetcher:
 
             # Construindo filtro com base no satélite
             filt = self._build_filter(satelite, max_cloud_cover)
+
+            # Executa a busca na API com os parâmetros fornecidos
             search_result = self.connection.search(
                 bbox=bounding_box,
                 datetime=[start_date, end_date],
                 collections=[satelite],
-                filter=filt
+                filter=filt # Filtro não funcional no Stac utilizado pelo BDC, mas funcional em Stacs mais recentes
             )
 
-            items = list(search_result.items())
+            items = list(search_result.items()) # Converte resultados para lista
 
             if tile:
                 if not items:
@@ -52,7 +54,8 @@ class SatelliteImageFetcher:
                     ResultManager().log_error_csv(tile, satelite, "Nenhuma imagem encontrada.")
                     return None
 
-                geometry_utils = GeometryUtils(tile_grid_path)
+                geometry_utils = GeometryUtils(tile_grid_path)  # Instancia utilitário de geometria
+                # Filtra imagens que cobrem adequadamente o tile
                 items = [item for item in items if geometry_utils.is_good_geometry(item, tile)]
 
                 if not items:
@@ -64,8 +67,10 @@ class SatelliteImageFetcher:
                     logger.warning("Nenhuma imagem disponível para os parâmetros fornecidos.")
                     return None
 
+                # Tenta extrair o ID do tile usando os properties do BDC da primeira imagem
                 tile = items[0].properties.get('tileId', '')
                 geometry_utils = GeometryUtils(tile_grid_path)
+                # Mesmo sem o tile informado, tenta validar a geometria da imagem com base no tile inferido
                 items = [item for item in items if geometry_utils.is_good_geometry(item, tile)]
 
             # Seleciona a melhor imagem (menor cobertura de nuvem)
@@ -75,7 +80,7 @@ class SatelliteImageFetcher:
             cloud_cover = best_item.properties.get('eo:cloud_cover', 'desconhecido')
             logger.info(f"Imagem selecionada com {cloud_cover}% de nuvem.")
 
-            return best_item.assets
+            return best_item.assets  # Retorna os assets da imagem selecionada
 
         except Exception as e:
             erro_msg = str(e)
@@ -86,6 +91,7 @@ class SatelliteImageFetcher:
     def _build_filter(self, satelite, max_cloud_cover):
         """Cria o filtro de busca com base no satélite(não funcional na API do Brazil Data Cube)."""
         if satelite == 'S2_L2A-1':
+            # Aplica filtro com faixa de cobertura de nuvem entre 10 e o valor máximo permitido
             return {
                 "op": "and",
                 "args": [
@@ -94,6 +100,7 @@ class SatelliteImageFetcher:
                 ],
             }
         elif satelite == 'S2-16D-2':
+            # Apenas filtra imagens com cobertura de nuvem menor que o máximo permitido
             return {"op": "lte", "args": [{"property": "eo:cloud_cover"}, max_cloud_cover]}
         else:
             raise ValueError(f"Satélite '{satelite}' não suportado.")
