@@ -1,19 +1,14 @@
 # Importa o Typer para criar uma interface de linha de comando
 import typer
 
-# Importações de módulos customizados do projeto
 from brazil_data_cube.downloader.image_downloader import ImagemDownloader
-from brazil_data_cube.downloader.image_downloader import ImagemDownloader
+from brazil_data_cube.utils.logger import ResultManager
 from brazil_data_cube.config import IMAGES_DIR, SHAPEFILE_PATH, MAX_CLOUD_COVER_DEFAULT
 
-
-# Importações padrão
-import os
 import logging
 
-# Configuração do logger com formatação customizada
-from brazil_data_cube.utils.logger import setup_logger
-setup_logger()
+# Configuração do logger 
+ResultManager.setup_logger()
 logger = logging.getLogger(__name__)
 
 # Instância do Typer para CLI

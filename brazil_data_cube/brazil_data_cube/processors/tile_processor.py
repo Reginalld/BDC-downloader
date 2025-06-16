@@ -42,12 +42,13 @@ class TileProcessor:
 
         tile_mosaic_files = []
         results_time_estimated = []
-        logging.info(TILES_PARANA)
+        # Itera sobre cada tile definido para o estado do Paraná
         for tile in TILES_PARANA:
             logging.info(tile)
             start = time.perf_counter()
             logger.info(f"Processando tile {tile}...")
 
+            # Carrega o shapefile da grade de tiles e filtra pelo nome do tile
             tile_grid = gpd.read_file(self.tile_grid_path)
             tile_grid = tile_grid[tile_grid["NAME"] == tile]
 
@@ -55,8 +56,10 @@ class TileProcessor:
                 logger.warning(f"Tile {tile} não encontrado na grade Sentinel-2. Pulando...")
                 continue
 
+            # Calcula o bounding box reduzido para evitar bordas e melhorar qualidade das imagens
             main_bbox = self.bbox_handler.calcular_bbox_reduzido(tile_grid)
 
+            # Busca as imagens disponíveis que atendem aos critérios
             image_assets = self.fetcher.fetch_image(
                 satelite, main_bbox, start_date, end_date,
                 self.max_cloud_cover, self.tile_grid_path, tile
@@ -66,24 +69,24 @@ class TileProcessor:
                 logger.warning(f"Nenhuma imagem encontrada para o tile {tile}.")
                 continue
 
-            prefixo = (
-                        f"{tile}_{satelite}_{start_date}_{end_date}"
-                    )
+            # Prefixo usado nos nomes dos arquivos baixados e processados
+            prefixo = f"{tile}_{satelite}_{start_date}_{end_date}"
+                    
             logger.info("Baixando e processando imagens...")
             DownloadBandas.baixar_bandas(image_assets,self.downloader,prefixo,satelite)
 
-
+            # Caminho do arquivo final (mosaico) para o tile atual
             tile_mosaic_output = os.path.join(self.output_dir, f"{satelite}_{tile}_{start_date}_{end_date}_RGB.tif")
-            # ImageProcessor(satelite).merge_bandas_tif(
-            #     r, g, b, b08, aot, b01, b05, b06,
-            #     b07, b09, b11, b12, b8a, pvi, scl,
-            #     tci, wvp, tile_mosaic_output
-            # )
+
+            # (Comentado) Processamento para gerar o mosaico final a partir das bandas baixadas
+            # Pode ser ativado no futuro quando a montagem do mosaico estiver implementada
+            # self.image_processor.merge_bandas_tif(...)
 
             tile_mosaic_files.append(tile_mosaic_output)
             duration = time.perf_counter() - start
             results_time_estimated.append({"Tile_id": tile, "duration_sec": duration})
-
+            
+        # Gera o relatório final de resultados e tempo de execução por tile
         self.result_manager.gerenciar_resultados(
             tile_mosaic_files, results_time_estimated
         )

@@ -2,8 +2,8 @@
 
 import math
 import logging
-from ..config import REDUCTION_FACTOR
 import os
+from .bounding_box_calculator import BoundingBoxCalculator
 
 from typing import List, Optional, Tuple
 
@@ -24,14 +24,19 @@ class BoundingBoxHandler:
         Returns:
             List[float]: [minx, miny, maxx, maxy] da nova bbox
         """
+        # Pegando a geometria do tile em questão
         tile_geometry = tile_grid.geometry.iloc[0]
         minx, miny, maxx, maxy = tile_geometry.bounds
 
+        # Calcula centro do tile
         center_x = (minx + maxx) / 2
         center_y = (miny + maxy) / 2
+
+        # Calcula nova largura e altura reduzidas com base no fator
         width = (maxx - minx) * self.reduction_factor
         height = (maxy - miny) * self.reduction_factor
 
+        # Define nova bounding box centrada, com largura/altura reduzidas
         new_minx = center_x - (width / 2)
         new_maxx = center_x + (width / 2)
         new_miny = center_y - (height / 2)
@@ -61,7 +66,8 @@ class BoundingBoxHandler:
             if not os.path.isfile(tile_grid_path):
                 logging.error(f"Arquivo Shapefile não encontrado: {tile_grid_path}")
                 raise FileNotFoundError(f"Shapefile não encontrado no caminho: {tile_grid_path}")
-            
+
+            # Carrega shapefile e filtra o tile pelo ID
             tile_grid = gpd.read_file(tile_grid_path)
             tile_grid = tile_grid[tile_grid["NAME"] == tile_id]
 
@@ -69,14 +75,17 @@ class BoundingBoxHandler:
                 logger.error(f"Tile {tile_id} não encontrado na grade Sentinel-2.")
                 raise ValueError(f"Tile ID inválido: {tile_id}")
 
+            # Extrai geometria e bounding box original
             tile_geometry = tile_grid.geometry.iloc[0]
             minx, miny, maxx, maxy = tile_geometry.bounds
 
+            # Calcula centro e aplica redução
             center_x = (minx + maxx) / 2
             center_y = (miny + maxy) / 2
             width = (maxx - minx) * self.reduction_factor
             height = (maxy - miny) * self.reduction_factor
 
+            # Bounding box reduzida
             new_minx = center_x - (width / 2)
             new_maxx = center_x + (width / 2)
             new_miny = center_y - (height / 2)
@@ -84,6 +93,7 @@ class BoundingBoxHandler:
 
             main_bbox = [new_minx, new_miny, new_maxx, new_maxy]
 
+            # Atualiza centro e raio baseado na geometria do tile original
             lat = (miny + maxy) / 2
             lon = (minx + maxx) / 2
             bbox_width_km = ((maxx - minx) * 111 * math.cos(math.radians(lat)))
@@ -91,10 +101,11 @@ class BoundingBoxHandler:
             radius_km = max(bbox_width_km, bbox_height_km) / 2
 
         elif lat is not None and lon is not None:
-            from .bounding_box_calculator import BoundingBoxCalculator
+            # Quando coordenadas são fornecidas diretamente
             main_bbox = BoundingBoxCalculator.calcular(lat, lon, radius_km)
             logger.info("Processando sem tile ID.")
         else:
+            # Nenhuma fonte de localização fornecida
             logger.error("É necessário fornecer latitude/longitude ou um ID de tile Sentinel-2.")
             raise ValueError("Faltam parâmetros para definir a área de interesse.")
 

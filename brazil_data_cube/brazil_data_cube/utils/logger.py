@@ -4,8 +4,7 @@ import logging
 import csv
 from datetime import datetime
 import os
-from ..config import LOG_CSV_PATH
-from ..config import TILES_PARANA
+from ..config import LOG_CSV_PATH, TILES_PARANA, LOG_FILE
 import pandas as pd 
 from pathlib import Path
 from typing import List, Dict, Any
@@ -101,16 +100,17 @@ class ResultManager:
         print(f"Estimativa total ({len(TILES_PARANA)} quadrantes): {estimativa_total:.2f} minutos")
         print(f"CSV salvo em: {csv_path}")
 
-def setup_logger(log_file="log/brazil_data_cube_log.txt"):
-    """Configura o sistema de logging para console e arquivo."""
-    log_path = Path(log_file)
-    log_path.parent.mkdir(exist_ok=True)
+    @staticmethod
+    def setup_logger(log_file=LOG_FILE):
+        """Configura o sistema de logging para console e arquivo."""
+        log_path = Path(log_file)
+        log_path.parent.mkdir(exist_ok=True)
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-        handlers=[
-            logging.FileHandler(log_path),
-            logging.StreamHandler()
-        ]
-    )
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+            handlers=[
+                logging.FileHandler(log_path),
+                logging.StreamHandler()
+            ]
+        )

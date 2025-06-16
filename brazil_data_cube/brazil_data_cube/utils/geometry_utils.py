@@ -13,7 +13,7 @@ class GeometryUtils:
 
     def is_good_geometry(self, item: Any, tile_id: str) -> bool:
         """
-        Valida se a imagem cobre mais de 82% do tile especificado.
+        Valida se a imagem cobre mais de 82% de geometria do tile especificado.
         
         Args:
             item (Any): Item STAC retornado pelo catálogo
