@@ -3,11 +3,11 @@
 import time
 import logging
 import geopandas as gpd
-from ..config import TILES_PARANA
-from ..config import SAT_SUPPORTED
+from ..config import TILES_PARANA, SAT_SUPPORTED
 from ..utils.bounding_box_handler import BoundingBoxHandler
 from ..utils.logger import ResultManager
 from brazil_data_cube.processors.image_processor import ImageProcessor
+from brazil_data_cube.downloader.download_bandas import DownloadBandas
 import os
 from typing import List, Dict, Any
 
@@ -66,25 +66,11 @@ class TileProcessor:
                 logger.warning(f"Nenhuma imagem encontrada para o tile {tile}.")
                 continue
 
+            prefixo = (
+                        f"{tile}_{satelite}_{start_date}_{end_date}"
+                    )
             logger.info("Baixando e processando imagens...")
-            r = self.downloader.download(image_assets['B04'], f"{tile}_{satelite}_{start_date}_{end_date}_red")
-            g = self.downloader.download(image_assets['B03'], f"{tile}_{satelite}_{start_date}_{end_date}_green")
-            b = self.downloader.download(image_assets['B02'], f"{tile}_{satelite}_{start_date}_{end_date}_blue")
-            b08 = self.downloader.download(image_assets['B08'], f"{tile}_{satelite}_{start_date}_{end_date}_B08")
-            aot = self.downloader.download(image_assets['AOT'], f"{tile}_{satelite}_{start_date}_{end_date}_AOT")
-            b01 = self.downloader.download(image_assets['B01'], f"{tile}_{satelite}_{start_date}_{end_date}_B01")
-            b05 = self.downloader.download(image_assets['B05'], f"{tile}_{satelite}_{start_date}_{end_date}_B05")
-            b06 = self.downloader.download(image_assets['B06'], f"{tile}_{satelite}_{start_date}_{end_date}_B06")
-            b07 = self.downloader.download(image_assets['B07'], f"{tile}_{satelite}_{start_date}_{end_date}_B07")
-            b09 = self.downloader.download(image_assets['B09'], f"{tile}_{satelite}_{start_date}_{end_date}_B09")
-            b11 = self.downloader.download(image_assets['B11'], f"{tile}_{satelite}_{start_date}_{end_date}_B11")
-            b12 = self.downloader.download(image_assets['B12'], f"{tile}_{satelite}_{start_date}_{end_date}_B12")
-            b8a = self.downloader.download(image_assets['B8A'], f"{tile}_{satelite}_{start_date}_{end_date}_B8A")
-            pvi = self.downloader.download(image_assets['PVI'], f"{tile}_{satelite}_{start_date}_{end_date}_PVI")
-            scl = self.downloader.download(image_assets['SCL'], f"{tile}_{satelite}_{start_date}_{end_date}_SCL")
-            tci = self.downloader.download(image_assets['TCI'], f"{tile}_{satelite}_{start_date}_{end_date}_TCI")
-            wvp = self.downloader.download(image_assets['WVP'], f"{tile}_{satelite}_{start_date}_{end_date}_WVP")
-            mtd_tl = self.downloader.download(image_assets['MTD_TL'], f"{tile}_{satelite}_{start_date}_{end_date}_MTD_TL")
+            DownloadBandas.baixar_bandas(image_assets,self.downloader,prefixo,satelite)
 
 
             tile_mosaic_output = os.path.join(self.output_dir, f"{satelite}_{tile}_{start_date}_{end_date}_RGB.tif")

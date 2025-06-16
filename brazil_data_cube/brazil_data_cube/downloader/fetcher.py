@@ -2,7 +2,6 @@
 
 import logging
 from ..utils.logger import ResultManager
-from ..config import TILES_PARANA
 from typing import Optional, Dict, Any
 from ..utils.geometry_utils import GeometryUtils
 
@@ -102,5 +101,7 @@ class SatelliteImageFetcher:
         elif satelite == 'S2-16D-2':
             # Apenas filtra imagens com cobertura de nuvem menor que o máximo permitido
             return {"op": "lte", "args": [{"property": "eo:cloud_cover"}, max_cloud_cover]}
+        elif satelite == 'landsat-2':
+            return {}
         else:
             raise ValueError(f"Satélite '{satelite}' não suportado.")

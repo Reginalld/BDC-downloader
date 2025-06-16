@@ -139,7 +139,7 @@ class ImagemDownloader:
             )
 
             # Faz o download das bandas RGB
-            arquivos_baixados = DownloadBandas.baixar_bandas(image_assets, self, prefixo)
+            arquivos_baixados = DownloadBandas.baixar_bandas(image_assets, self, prefixo,satelite)
 
             # Define o nome do arquivo final
             output_name = (

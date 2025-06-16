@@ -28,7 +28,7 @@ TILES_PARANA = [
 """
 
 # Satélites suportados
-SAT_SUPPORTED = ['S2_L2A-1', 'S2-16D-2']
+SAT_SUPPORTED = ['S2_L2A-1', 'S2-16D-2','landsat-2']
 
 # Configurações padrão
 DEFAULT_RADIUS_KM = 10.0
