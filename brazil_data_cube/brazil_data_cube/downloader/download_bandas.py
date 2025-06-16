@@ -13,7 +13,7 @@ class DownloadBandas:
 
     def baixar_bandas(image_assets, downloader , prefixo):
         """
-        Função responsável pela chamada de download de cada banda, evitando repetição onde necessário
+        Função responsável pela chamada de download de cada banda, evitando repetição onde necessário.
 
         """
 
