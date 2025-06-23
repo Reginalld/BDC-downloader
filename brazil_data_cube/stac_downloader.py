@@ -1,9 +1,11 @@
 # Importa o Typer para criar uma interface de linha de comando
 import typer
 
+from typing import List, Optional
 from brazil_data_cube.downloader.image_downloader import ImagemDownloader
 from brazil_data_cube.utils.logger import ResultManager
 from brazil_data_cube.config import IMAGES_DIR, SHAPEFILE_PATH, MAX_CLOUD_COVER_DEFAULT
+
 
 import logging
 

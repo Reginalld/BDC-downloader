@@ -4,6 +4,7 @@ import os
 import requests
 from tqdm import tqdm
 import logging
+from datetime import datetime
 from typing import Optional
 from brazil_data_cube.utils.bdc_connection import BdcConnection
 from brazil_data_cube.downloader.fetcher import SatelliteImageFetcher
@@ -96,6 +97,10 @@ class ImagemDownloader:
 
             # Utilitário para gerar bounding box
             bbox_handler = BoundingBoxHandler(reduction_factor=REDUCTION_FACTOR)
+
+            ano_mes = datetime.strptime(start_date, "%Y-%m-%d").strftime("%Y-%m")
+            self.output_dir = os.path.join(self.output_dir, satelite, ano_mes)
+            self.create_output()
 
             # Se for o estado do Paraná, delega ao TileProcessor
             if tile_id in ["Paraná", "parana"]:
