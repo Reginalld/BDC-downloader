@@ -3,6 +3,7 @@
 import os
 import requests
 from tqdm import tqdm
+import time
 import logging
 from datetime import datetime
 from typing import Optional
@@ -38,29 +39,42 @@ class ImagemDownloader:
         Returns:
             Optional[str]: Caminho do arquivo baixado ou None se falhar
         """
-        try:
-            if asset is None:
-                logger.error("Tentativa de download com asset inválido.")
-                raise ValueError("Asset inválido.")
+        if asset is None:
+            logger.error("Tentativa de download com asset inválido.")
+            return None
 
-            filepath = os.path.join(self.output_dir, filename)
-            logger.info(f"Iniciando download da imagem para: {filepath}")
+        filepath = os.path.join(self.output_dir, filename)
+        logger.info(f"Iniciando download da imagem para: {filepath}")
 
-            response = requests.get(asset.href, stream=True, **request_options)
-            total_bytes = int(response.headers.get('content-length', 0))
-            chunk_size = 1024 * 16
+        max_retries = 3
+        backoff_factor = 2.0
+        attempt = 0
+        while attempt < max_retries:
+            try:
+                response = requests.get(asset.href, stream=True, timeout=30, **request_options)
+                response.raise_for_status()
 
-            #Baixa o conteúdo em partes com barra de progresso
-            with tqdm.wrapattr(open(filepath, 'wb'), 'write', miniters=1, total=total_bytes, desc=os.path.basename(filepath)) as fout:
-                for chunk in response.iter_content(chunk_size=chunk_size):
-                    fout.write(chunk)
+                total_bytes = int(response.headers.get('content-length', 0))
+                chunk_size = 1024 * 16
 
-            logger.info(f"Download concluído: {filepath}")
-            return filepath
+                with tqdm.wrapattr(open(filepath, 'wb'), 'write', miniters=1, total=total_bytes, desc=os.path.basename(filepath)) as fout:
+                    for chunk in response.iter_content(chunk_size=chunk_size):
+                        if chunk:
+                            fout.write(chunk)
 
-        except Exception as e:
-            logger.error(f"Erro ao fazer download da imagem: {str(e)}")
-            raise RuntimeError(f"Erro ao fazer download da imagem: {e}")
+                logger.info(f"Download concluído: {filepath}")
+                return filepath
+
+            except (requests.RequestException, OSError) as e:
+                attempt += 1
+                logger.warning(f"Tentativa {attempt}/{max_retries} falhou: {e}")
+                if attempt < max_retries:
+                    sleep_time = backoff_factor ** attempt
+                    logger.info(f"Aguardando {sleep_time:.1f}s antes da próxima tentativa...")
+                    time.sleep(sleep_time)
+                else:
+                    logger.error(f"Falha definitiva no download de {filename}: {e}")
+                    return None
         
 
     def executar_download(

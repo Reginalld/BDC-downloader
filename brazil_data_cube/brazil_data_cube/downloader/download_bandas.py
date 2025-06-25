@@ -10,7 +10,8 @@ logger = logging.getLogger(__name__)
 class DownloadBandas:
     def __init__(self):
         pass
-
+    
+    @staticmethod
     def baixar_bandas(image_assets, downloader , prefixo,satelite):
         """
         Função responsável pela chamada de download de cada banda, evitando repetição onde necessário.
@@ -67,5 +68,12 @@ class DownloadBandas:
         arquivos_baixados = {}
         for banda, sufixo in bandas.items():
             if banda in image_assets:
-                arquivos_baixados[banda] = downloader.download(image_assets[banda], f"{prefixo}_{sufixo}")
+                try:
+                    filepath = downloader.download(image_assets[banda], f"{prefixo}_{sufixo}")
+                    if filepath:
+                        arquivos_baixados[banda] = filepath
+                    else:
+                        logger.warning(f"Download falhou para banda '{banda}' ({sufixo})")
+                except Exception as e:
+                    logger.error(f"Erro ao baixar banda '{banda}': {e}")
         return arquivos_baixados
