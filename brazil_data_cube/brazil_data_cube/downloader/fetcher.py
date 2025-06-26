@@ -50,7 +50,7 @@ class SatelliteImageFetcher:
             if tile:
                 if not items:
                     logger.error(f"Nenhuma imagem disponível para o tile '{tile}'.")
-                    ResultManager().log_error_csv(tile, satelite, "Nenhuma imagem encontrada.")
+                    ResultManager().log_error_csv(tile, satelite, "Nenhuma imagem encontrada.",start_date)
                     return None
 
                 geometry_utils = GeometryUtils(tile_grid_path)  # Instancia utilitário de geometria
@@ -59,7 +59,7 @@ class SatelliteImageFetcher:
 
                 if not items:
                     logger.warning(f"Nenhuma imagem passou no filtro de geometria para o tile: {tile}")
-                    ResultManager().log_error_csv(tile, satelite, "Imagem não passou no filtro de geometria.")
+                    ResultManager().log_error_csv(tile, satelite, "Imagem não passou no filtro de geometria.",start_date)
                     return None
             else:
                 if not items:
@@ -84,7 +84,7 @@ class SatelliteImageFetcher:
         except Exception as e:
             erro_msg = str(e)
             logger.error(f"Erro ao obter imagem do {satelite}: {erro_msg}", exc_info=True)
-            ResultManager().log_error_csv(tile, satelite, erro_msg)
+            ResultManager().log_error_csv(tile, satelite, erro_msg,start_date)
             return None
 
     def _build_filter(self, satelite, max_cloud_cover):

@@ -4,7 +4,7 @@ import logging
 import csv
 from datetime import datetime
 import os
-from ..config import LOG_CSV_PATH, TILES_PARANA, LOG_FILE
+from ..config import LOG_CSV_PATH, TILES_PARANA
 import pandas as pd 
 from pathlib import Path
 from typing import List, Dict, Any
@@ -17,20 +17,26 @@ class ResultManager:
         pass
 
     @staticmethod
-    def log_error_csv(tile: str, satelite: str, erro_msg: str) -> None:
+    def log_error_csv(tile: str, satelite: str, erro_msg: str, start_date: str, base_log_dir: str = "log") -> None:
         """
-        Registra erros no CSV de falhas.
-        
+        Registra erros no CSV de falhas, organizados por satélite e ano/mês.
+
         Args:
-            tile (str): Tile ou região afetada
-            satelite (str): Nome do satélite
-            erro_msg (str): Mensagem de erro detalhada
+            tile (str): Tile ou região afetada.
+            satelite (str): Nome do satélite.
+            erro_msg (str): Mensagem de erro detalhada.
+            start_date (str): Data de início da execução (formato YYYY-MM-DD).
+            base_log_dir (str): Caminho base onde salvar os logs.
         """
-        os.makedirs(os.path.dirname(LOG_CSV_PATH), exist_ok=True)
-        file_exists = os.path.isfile(LOG_CSV_PATH)
+        ano_mes = datetime.strptime(start_date, "%Y-%m-%d").strftime("%Y-%m")
+        log_dir = Path(base_log_dir) / satelite / ano_mes
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        csv_path = log_dir / "erros.csv"
+        file_exists = csv_path.is_file()
 
         try:
-            with open(LOG_CSV_PATH, mode="a", newline="", encoding='utf-8') as csvfile:
+            with open(csv_path, mode="a", newline="", encoding='utf-8') as csvfile:
                 fieldnames = ["Data", "Tile_id", "Satelite", "Erro"]
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames, dialect='excel')
 
@@ -47,7 +53,7 @@ class ResultManager:
         except Exception as e:
             logger.critical(f"Falha ao gravar no CSV de erros: {e}")
             
-    def gerenciar_resultados(self, tile_mosaic_files: List[str], results_time_estimated: List[Dict[str, float]]) -> None:
+    def gerenciar_resultados(self, tile_mosaic_files: List[str], results_time_estimated: List[Dict[str, float]], satelite: str, start_date: str) -> None:
         """
         Gera relatórios de tempo 
         
@@ -72,7 +78,12 @@ class ResultManager:
 
         df = self._adicionar_resumo(df, executed_at, media, estimativa_total)
 
-        csv_path = f"log/tempo_downloads_{time_stamp_str}.csv"
+        ano_mes = datetime.strptime(start_date, "%Y-%m-%d").strftime("%Y-%m")
+        base_log_dir= 'log'
+        log_dir = Path(base_log_dir) / satelite / ano_mes
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        csv_path = log_dir / f"tempo_downloads_{time_stamp_str}.csv"
         df.to_csv(csv_path, index=False)
 
         self._imprimir_resumo(media, estimativa_total, csv_path)
@@ -101,16 +112,29 @@ class ResultManager:
         print(f"CSV salvo em: {csv_path}")
 
     @staticmethod
-    def setup_logger(log_file=LOG_FILE):
-        """Configura o sistema de logging para console e arquivo."""
-        log_path = Path(log_file)
-        log_path.parent.mkdir(exist_ok=True)
+    def setup_logger(satelite: str, data: str, base_log_dir: str = "log") -> None:
+        """
+        Configura o sistema de logging para console e arquivo.
+        Args:
+            satelite (str): Nome do satélite (ex: "S2_L2A-').
+            data (str): Data inicial no formato YYYY-MM-DD.
+            base_log_dir (str): Diretório base onde salvar os logs.
+ 
+        """
+
+        ano_mes = datetime.strptime(data, "%Y-%m-%d").strftime("%Y-%m")
+        log_dir = Path(base_log_dir) / satelite / ano_mes
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        log_file_path = log_dir / "execucao.log"
 
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
             handlers=[
-                logging.FileHandler(log_path),
+                logging.FileHandler(log_file_path),
                 logging.StreamHandler()
             ]
         )
+        
+        logger.info(f"Logger configurado para: {log_file_path}")

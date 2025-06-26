@@ -88,5 +88,5 @@ class TileProcessor:
             
         # Gera o relatório final de resultados e tempo de execução por tile
         self.result_manager.gerenciar_resultados(
-            tile_mosaic_files, results_time_estimated
+            tile_mosaic_files, results_time_estimated,satelite,start_date
         )

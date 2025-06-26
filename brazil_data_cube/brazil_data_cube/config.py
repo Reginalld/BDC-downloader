@@ -19,7 +19,10 @@ LOG_FILE = f"log/brazil_data_cube_log.txt"
 # Tiles do Paraná
 TILES_PARANA = [
     "21JYM",
-    "21JYN",
+]
+
+"""
+"21JYN",
     "21JZM",
     "21JZN",
     "21KYP",
@@ -57,8 +60,7 @@ TILES_PARANA = [
     "22KEV",
     "22KFU",
     "22KFV"
-]
-
+"""
 
 # Satélites suportados
 SAT_SUPPORTED = ['S2_L2A-1', 'S2-16D-2','landsat-2']

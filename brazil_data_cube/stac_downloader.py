@@ -9,10 +9,6 @@ from brazil_data_cube.config import IMAGES_DIR, SHAPEFILE_PATH, MAX_CLOUD_COVER_
 
 import logging
 
-# Configuração do logger 
-ResultManager.setup_logger()
-logger = logging.getLogger(__name__)
-
 # Instância do Typer para CLI
 app = typer.Typer()
 
@@ -33,6 +29,12 @@ def main(
     """
     Main reponsável pela orquestração inicial do código, apenas coletando informações do usuário.
     """
+
+    # Configuração do logger 
+    ResultManager.setup_logger(satelite, start_date)
+    logger = logging.getLogger(__name__)
+
+
     imagem_downloader = ImagemDownloader(output_dir)
     imagem_downloader.executar_download(
         satelite, lat, lon, tile_id, radius_km,
