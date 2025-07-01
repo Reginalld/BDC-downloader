@@ -1,11 +1,11 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional
-from brazil_data_cube.config import SHAPEFILE_PATH, MAX_CLOUD_COVER_DEFAULT
+from brazil_data_cube.config import SHAPEFILE_PATH, MAX_CLOUD_COVER_DEFAULT, SAT_SUPPORTED
 from datetime import datetime
 
 
 class DownloadRequest(BaseModel):
-    satelite: str = Field(pattern=r"^S2_L2A-1$|^landsat-2$", description="Nome do satélite, ex: S2_L2A-1 ou landsat-2")
+    satelite: str 
     
     lat: Optional[float] = Field(None, ge=-90.0, le=90.0)
     lon: Optional[float] = Field(None, ge=-180.0, le=180.0)
@@ -22,6 +22,13 @@ class DownloadRequest(BaseModel):
     tile_grid_path: str = SHAPEFILE_PATH
     max_cloud_cover: float = MAX_CLOUD_COVER_DEFAULT
 
+    @field_validator("satelite")
+    @classmethod
+    def validate_sat(cls, v):
+        if v != "S2_L2A-1" and v != "landsat-2":
+            raise ValueError(f"Satélite {v} não suportado, escolha entre: {tuple(SAT_SUPPORTED)}")
+        return v
+
     @field_validator("start_date", "end_date")
     @classmethod
     def validate_dates(cls, v):
@@ -30,16 +37,18 @@ class DownloadRequest(BaseModel):
         except ValueError:
             raise ValueError("A data deve estar no formato YYYY-MM-DD")
         return v
+    
+    @model_validator(mode="after")
+    def lat_lon_do_not_be_set_if_id(self):
+        if (self.lat is not None or self.lon is not None ):
+            if(self.tile_id is not None):
+                raise ValueError("É permitido apenas permitido um parâmetro de busca, escolha entre coordenadas ou ID")
 
-    @field_validator("lat", "lon")
-    @classmethod
-    def lat_lon_must_be_set_together(cls, v, info):
-                # info.field_name vai indicar qual campo está sendo validado ("lat" ou "lon")
-        values = info.data  # dados já recebidos
-
-        if info.field_name == "lat" and v is not None and values.get("lon") is None:
-            raise ValueError("Se latitude for fornecida, longitude também deve ser.")
-        if info.field_name == "lon" and v is not None and values.get("lat") is None:
-            raise ValueError("Se longitude for fornecida, latitude também deve ser.")
-        return v
+        return self
+        
+    @model_validator(mode="after")
+    def lat_lon_must_be_set_together(self):
+        if (self.lat is not None and self.lon is None) or (self.lon is not None and self.lat is None):
+            raise ValueError("Latitude e longitude devem ser informadas juntas.")
+        return self
 
