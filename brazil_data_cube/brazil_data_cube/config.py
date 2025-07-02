@@ -13,8 +13,8 @@ IMAGES_DIR = DATA_DIR / "imagens"
 SHAPEFILE_PATH = DATA_DIR / "shapefile_ids" / "grade_sentinel_brasil.shp"
 LOG_DIR = DATA_DIR / "log"
 CSV_DIR = DATA_DIR / "temp"
-LOG_CSV_PATH = DATA_DIR / "log/falhas_download.csv"
-LOG_FILE = f"log/brazil_data_cube_log.txt"
+LOG_CSV_PATH = DATA_DIR / "log\\falhas_download.csv"
+LOG_FILE = f"log\\brazil_data_cube_log.txt"
 
 # Tiles do Paraná
 TILES_PARANA = [

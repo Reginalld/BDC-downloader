@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional
-from brazil_data_cube.config import SHAPEFILE_PATH, MAX_CLOUD_COVER_DEFAULT, SAT_SUPPORTED
+from brazil_data_cube.config import SHAPEFILE_PATH, MAX_CLOUD_COVER_DEFAULT, SAT_SUPPORTED, TILES_PARANA
 from datetime import datetime
 
 
@@ -13,7 +13,6 @@ class DownloadRequest(BaseModel):
         None,
         min_length=5,
         max_length=6,
-        pattern=r"^[0-9]{2}[A-Z]{3}$|^parana$",
         description="Tile Sentinel-2 ou 'parana'"
     )
     radius_km: Optional[float] = Field(10.0, ge=0.1, le=100.0)
@@ -25,9 +24,26 @@ class DownloadRequest(BaseModel):
     @field_validator("satelite")
     @classmethod
     def validate_sat(cls, v):
-        if v != "S2_L2A-1" and v != "landsat-2":
-            raise ValueError(f"Satélite {v} não suportado, escolha entre: {tuple(SAT_SUPPORTED)}")
+        if v not in SAT_SUPPORTED:
+            raise ValueError(f"Satélite '{v}' não suportado. Escolha entre: {SAT_SUPPORTED}")
         return v
+    
+    @field_validator("tile_id")
+    @classmethod
+    def validate_tile_id(cls, v):
+        if v is None:
+            return v
+
+        v = v.upper()
+
+        if v == "PARANA":
+            return "parana"
+
+        # Verifica se está na lista de tiles válidos
+        if v.upper() not in TILES_PARANA:
+            raise ValueError(
+                f"Tile '{v}' inválido. Use 'parana' ou um dos tiles válidos: {TILES_PARANA}"
+            )
 
     @field_validator("start_date", "end_date")
     @classmethod
@@ -39,16 +55,18 @@ class DownloadRequest(BaseModel):
         return v
     
     @model_validator(mode="after")
-    def lat_lon_do_not_be_set_if_id(self):
-        if (self.lat is not None or self.lon is not None ):
-            if(self.tile_id is not None):
-                raise ValueError("É permitido apenas permitido um parâmetro de busca, escolha entre coordenadas ou ID")
+    def validate_date_range(self):
+        if datetime.strptime(self.start_date, "%Y-%m-%d") > datetime.strptime(self.end_date, "%Y-%m-%d"):
+            raise ValueError("A data de início deve ser anterior ou igual à data de término")
+        return self
 
-        return self
-        
     @model_validator(mode="after")
-    def lat_lon_must_be_set_together(self):
-        if (self.lat is not None and self.lon is None) or (self.lon is not None and self.lat is None):
-            raise ValueError("Latitude e longitude devem ser informadas juntas.")
-        return self
+    def validate_lat_lon_and_id(cls, values):
+        if values.tile_id and (values.lat or values.lon):
+            raise ValueError("Informe apenas 'tile_id' ou par de coordenadas (lat/lon), não ambos.")
+
+        if (values.lat is not None and values.lon is None) or (values.lon is not None and values.lat is None):
+            raise ValueError("Latitude e longitude devem ser fornecidas juntas.")
+
+        return values
 
