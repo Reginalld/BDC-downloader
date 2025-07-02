@@ -44,6 +44,8 @@ class DownloadRequest(BaseModel):
             raise ValueError(
                 f"Tile '{v}' inválido. Use 'parana' ou um dos tiles válidos: {TILES_PARANA}"
             )
+        
+        return v
 
     @field_validator("start_date", "end_date")
     @classmethod
@@ -59,14 +61,14 @@ class DownloadRequest(BaseModel):
         if datetime.strptime(self.start_date, "%Y-%m-%d") > datetime.strptime(self.end_date, "%Y-%m-%d"):
             raise ValueError("A data de início deve ser anterior ou igual à data de término")
         return self
-
+    
     @model_validator(mode="after")
-    def validate_lat_lon_and_id(cls, values):
-        if values.tile_id and (values.lat or values.lon):
+    def validate_lat_lon_and_id(self):
+        if self.tile_id and (self.lat or self.lon):
             raise ValueError("Informe apenas 'tile_id' ou par de coordenadas (lat/lon), não ambos.")
 
-        if (values.lat is not None and values.lon is None) or (values.lon is not None and values.lat is None):
+        if (self.lat is not None and self.lon is None) or (self.lon is not None and self.lat is None):
             raise ValueError("Latitude e longitude devem ser fornecidas juntas.")
 
-        return values
+        return self
 
