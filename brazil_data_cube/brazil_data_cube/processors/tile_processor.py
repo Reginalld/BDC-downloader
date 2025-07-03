@@ -9,6 +9,7 @@ from ..utils.logger import ResultManager
 from brazil_data_cube.processors.image_processor import ImageProcessor
 from brazil_data_cube.downloader.download_bandas import DownloadBandas
 import os
+from brazil_data_cube.minio.MinioUploader import MinioUploader
 from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,14 @@ class TileProcessor:
         self.bbox_handler = BoundingBoxHandler()
         self.result_manager = ResultManager()
         self.image_processor = ImageProcessor(satelite="")  # Será redefinido na execução
+        self.minio_uploader = MinioUploader(
+            endpoint="localhost:9000",
+            access_key="P8qQeeRKP6pHWDGuKiLi",
+            secret_key="v7aKWRVPoN76hNQirzefTeeWsnSsNGHlz5AHI1QU",
+            secure=False,
+            bucket_name= "imagens-brutas"
+        )
+
 
     def processar_tiles_parana(self, satelite: str, start_date: str, end_date: str) -> None:
         """
@@ -35,6 +44,8 @@ class TileProcessor:
             start_date (str): Data de início (YYYY-MM-DD)
             end_date (str): Data final (YYYY-MM-DD)
         """
+
+
         if satelite not in SAT_SUPPORTED:
             logger.error(f"Satélite '{satelite}' não é suportado.")
             self.result_manager.log_error_csv("Paraná", satelite, "Satélite não suportado")
@@ -82,10 +93,12 @@ class TileProcessor:
             # Pode ser ativado no futuro quando a montagem do mosaico estiver implementada
             # self.image_processor.merge_bandas_tif(...)
 
+
             tile_mosaic_files.append(tile_mosaic_output)
             duration = time.perf_counter() - start
             results_time_estimated.append({"Tile_id": tile, "duration_sec": duration})
-            
+
+        
         # Gera o relatório final de resultados e tempo de execução por tile
         self.result_manager.gerenciar_resultados(
             tile_mosaic_files, results_time_estimated,satelite,start_date

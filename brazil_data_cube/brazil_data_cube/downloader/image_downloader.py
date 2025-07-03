@@ -12,6 +12,7 @@ from brazil_data_cube.downloader.fetcher import SatelliteImageFetcher
 from brazil_data_cube.utils.bounding_box_handler import BoundingBoxHandler
 from brazil_data_cube.processors.tile_processor import TileProcessor
 from brazil_data_cube.downloader.download_bandas import DownloadBandas
+from brazil_data_cube.minio.MinioUploader import MinioUploader
 from brazil_data_cube.config import REDUCTION_FACTOR
 
 
@@ -160,6 +161,8 @@ class ImagemDownloader:
             # Faz o download das bandas RGB
             arquivos_baixados = DownloadBandas.baixar_bandas(image_assets, self, prefixo,satelite)
 
+            print(arquivos_baixados)
+            print("")
             # Define o nome do arquivo final
             output_name = (
                 f"{radius_final:.2f}KM_{satelite}_{tile_id}_{start_date}_{end_date}_RGB.tif"
@@ -172,3 +175,17 @@ class ImagemDownloader:
 
             # Aqui poderia vir o merge das bandas RGB se necessário
             # ImageProcessor(satelite).merge_rgb_tif(..., output_path)
+
+            if arquivos_baixados:
+                uploader = MinioUploader(
+                    endpoint="localhost:9000",
+                    access_key="P8qQeeRKP6pHWDGuKiLi",
+                    secret_key="v7aKWRVPoN76hNQirzefTeeWsnSsNGHlz5AHI1QU",
+                    bucket_name="imagens-brutas",
+                    secure=False
+                )
+                
+                # Prefixo no bucket pode conter data ou nome da tile
+            for path in arquivos_baixados.values():
+                uploader.upload_file(path, object_name=os.path.join(satelite, tile_id or 'ponto', os.path.basename(path)))
+

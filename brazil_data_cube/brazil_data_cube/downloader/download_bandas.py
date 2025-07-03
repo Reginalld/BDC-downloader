@@ -40,8 +40,8 @@ class DownloadBandas:
             }
         elif satelite == "landsat-2":
             bandas = {
-                'ang': 'ang',
-                # 'red': 'red',
+                # 'ang': 'ang',
+                'red': 'red',
                 # 'blue': 'blue',
                 # 'green': 'green',
                 # 'nir08': 'nir08',
