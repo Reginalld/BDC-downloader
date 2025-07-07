@@ -11,7 +11,7 @@ class GeometryUtils:
     def __init__(self, tile_grid_path: str):
         self.tile_grid_path = tile_grid_path
 
-    def is_good_geometry(self, item: Any, tile_id: str) -> bool:
+    def is_good_geometry(self, item: Any, tile_id: str, satelite: str) -> bool:
         """
         Valida se a imagem cobre mais de 82% de geometria do tile especificado.
         
@@ -23,7 +23,12 @@ class GeometryUtils:
             bool: True se passou no teste, False caso contrário
         """
         tiles_gdf = gpd.read_file(self.tile_grid_path)
-        tile_row = tiles_gdf[tiles_gdf["NAME"] == tile_id]
+        if satelite == "S2-L2A_1":
+            tile_row = tiles_gdf[tiles_gdf["NAME"] == tile_id]
+        else:
+            path = int(tile_id[:3])
+            row = int(tile_id[3:])
+            tile_row = tiles_gdf[(tiles_gdf["PATH"] == path) & (tiles_gdf["ROW"] == row)]
 
         if tile_row.empty:
             logger.warning(f"Tile {tile_id} não encontrado na grade do Sentinel-2.")

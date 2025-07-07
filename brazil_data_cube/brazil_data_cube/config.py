@@ -11,10 +11,11 @@ DATA_DIR = ROOT_DIR / ""
 # Caminhos úteis
 IMAGES_DIR = DATA_DIR / "imagens"
 SHAPEFILE_PATH = DATA_DIR / "shapefile_ids" / "grade_sentinel_brasil.shp"
+SHAPEFILE_PATH_LANDSAT = DATA_DIR / "shapefile_ids" / "WRS2_descending.shp"
 LOG_DIR = DATA_DIR / "log"
 CSV_DIR = DATA_DIR / "temp"
-LOG_CSV_PATH = DATA_DIR / "log/falhas_download.csv"
-LOG_FILE = f"log/brazil_data_cube_log.txt"
+LOG_CSV_PATH = DATA_DIR / "log\\falhas_download.csv"
+LOG_FILE = f"log\\brazil_data_cube_log.txt"
 
 # Tiles do Paraná
 TILES_PARANA = [
@@ -56,6 +57,24 @@ TILES_PARANA = [
     # "22KEV",
     # "22KFU",
     # "22KFV"
+]
+
+LANDSAT_TILES_PARANA = [
+    "220077",
+    "220078",
+    "221076",
+    "221077",
+    "221078",
+    "221079",
+    "222076",
+    "222077",
+    "222078",
+    "223076",
+    "223077",
+    "223078",
+    "224076",
+    "224077",
+    "224078",
 ]
 
 # Satélites suportados

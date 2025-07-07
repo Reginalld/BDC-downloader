@@ -47,7 +47,7 @@ class BoundingBoxHandler:
 
     def obter_bounding_box(self, tile_id: Optional[str], lat: Optional[float],
                            lon: Optional[float], radius_km: float,
-                           tile_grid_path: str) -> Tuple[List[float], float, float, float]:
+                           tile_grid_path: str, satelite: str) -> Tuple[List[float], float, float, float]:
         """
         Gera uma bounding box com base em tile_id ou coordenadas.
         
@@ -69,7 +69,12 @@ class BoundingBoxHandler:
 
             # Carrega shapefile e filtra o tile pelo ID
             tile_grid = gpd.read_file(tile_grid_path)
-            tile_grid = tile_grid[tile_grid["NAME"] == tile_id]
+            if satelite == "S2_L2A-1":    
+                tile_grid = tile_grid[tile_grid["NAME"] == tile_id]
+            else:
+                path = int(tile_id[:3])
+                row = int(tile_id[3:])
+                tile_grid = tile_grid[(tile_grid["PATH"] == path) & (tile_grid["ROW"] == row)]
 
             if tile_grid.empty:
                 logger.error(f"Tile {tile_id} não encontrado na grade Sentinel-2.")

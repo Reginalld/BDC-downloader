@@ -12,8 +12,8 @@ from brazil_data_cube.downloader.fetcher import SatelliteImageFetcher
 from brazil_data_cube.utils.bounding_box_handler import BoundingBoxHandler
 from brazil_data_cube.processors.tile_processor import TileProcessor
 from brazil_data_cube.downloader.download_bandas import DownloadBandas
-from brazil_data_cube.minio.MinioUploader import MinioUploader
-from brazil_data_cube.config import REDUCTION_FACTOR
+# from brazil_data_cube.minio.MinioUploader import MinioUploader
+from brazil_data_cube.config import REDUCTION_FACTOR, SHAPEFILE_PATH_LANDSAT
 
 
 logger = logging.getLogger(__name__)
@@ -117,6 +117,11 @@ class ImagemDownloader:
             self.output_dir = os.path.join(self.output_dir, satelite, ano_mes)
             self.create_output()
 
+            if "landsat" in satelite.lower():
+                tile_grid_path = SHAPEFILE_PATH_LANDSAT
+            elif "s2" in satelite.lower() or "sentinel" in satelite.lower(): # Ex: "S2_L2A-1" ou "sentinel-2"
+                tile_grid_path = tile_grid_path
+
             # Se for o estado do Paraná, delega ao TileProcessor
             if tile_id in ["Paraná", "parana"]:
                 logger.info("Iniciando tiles do Paraná")
@@ -133,7 +138,7 @@ class ImagemDownloader:
 
             # Gera a bounding box com base nas coordenadas ou tile_id
             main_bbox, lat_final, lon_final, radius_final = bbox_handler.obter_bounding_box(
-                tile_id, lat, lon, radius_km, tile_grid_path
+                tile_id, lat, lon, radius_km, tile_grid_path, satelite
             )
 
             # Busca as imagens dentro dos critérios definidos
@@ -176,16 +181,16 @@ class ImagemDownloader:
             # Aqui poderia vir o merge das bandas RGB se necessário
             # ImageProcessor(satelite).merge_rgb_tif(..., output_path)
 
-            if arquivos_baixados:
-                uploader = MinioUploader(
-                    endpoint="localhost:9000",
-                    access_key="P8qQeeRKP6pHWDGuKiLi",
-                    secret_key="v7aKWRVPoN76hNQirzefTeeWsnSsNGHlz5AHI1QU",
-                    bucket_name="imagens-brutas",
-                    secure=False
-                )
+            # if arquivos_baixados:
+            #     uploader = MinioUploader(
+            #         endpoint="localhost:9000",
+            #         access_key="P8qQeeRKP6pHWDGuKiLi",
+            #         secret_key="v7aKWRVPoN76hNQirzefTeeWsnSsNGHlz5AHI1QU",
+            #         bucket_name="imagens-brutas",
+            #         secure=False
+            #     )
                 
-                # Prefixo no bucket pode conter data ou nome da tile
-            for path in arquivos_baixados.values():
-                uploader.upload_file(path, object_name=os.path.join(satelite, tile_id or 'ponto', os.path.basename(path)))
+            #     # Prefixo no bucket pode conter data ou nome da tile
+            # for path in arquivos_baixados.values():
+            #     uploader.upload_file(path, object_name=os.path.join(satelite, tile_id or 'ponto', os.path.basename(path)))
 

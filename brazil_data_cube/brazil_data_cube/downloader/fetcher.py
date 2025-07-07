@@ -55,7 +55,7 @@ class SatelliteImageFetcher:
 
                 geometry_utils = GeometryUtils(tile_grid_path)  # Instancia utilitário de geometria
                 # Filtra imagens que cobrem adequadamente o tile
-                items = [item for item in items if geometry_utils.is_good_geometry(item, tile)]
+                items = [item for item in items if geometry_utils.is_good_geometry(item, tile, satelite)]
 
                 if not items:
                     logger.warning(f"Nenhuma imagem passou no filtro de geometria para o tile: {tile}")
@@ -70,7 +70,7 @@ class SatelliteImageFetcher:
                 tile = items[0].properties.get('tileId', '')
                 geometry_utils = GeometryUtils(tile_grid_path)
                 # Mesmo sem o tile informado, tenta validar a geometria da imagem com base no tile inferido
-                items = [item for item in items if geometry_utils.is_good_geometry(item, tile)]
+                items = [item for item in items if geometry_utils.is_good_geometry(item, tile, satelite)]
 
             # Seleciona a melhor imagem (menor cobertura de nuvem)
             items.sort(key=lambda item: item.properties.get('eo:cloud_cover', float('inf')))

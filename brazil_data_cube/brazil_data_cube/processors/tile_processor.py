@@ -3,13 +3,13 @@
 import time
 import logging
 import geopandas as gpd
-from ..config import TILES_PARANA, SAT_SUPPORTED
+from ..config import TILES_PARANA, SAT_SUPPORTED, LANDSAT_TILES_PARANA
 from ..utils.bounding_box_handler import BoundingBoxHandler
 from ..utils.logger import ResultManager
 from brazil_data_cube.processors.image_processor import ImageProcessor
 from brazil_data_cube.downloader.download_bandas import DownloadBandas
 import os
-from brazil_data_cube.minio.MinioUploader import MinioUploader
+# from brazil_data_cube.minio.MinioUploader import MinioUploader
 from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
@@ -26,13 +26,13 @@ class TileProcessor:
         self.bbox_handler = BoundingBoxHandler()
         self.result_manager = ResultManager()
         self.image_processor = ImageProcessor(satelite="")  # Será redefinido na execução
-        self.minio_uploader = MinioUploader(
-            endpoint="localhost:9000",
-            access_key="P8qQeeRKP6pHWDGuKiLi",
-            secret_key="v7aKWRVPoN76hNQirzefTeeWsnSsNGHlz5AHI1QU",
-            secure=False,
-            bucket_name= "imagens-brutas"
-        )
+        # self.minio_uploader = MinioUploader(
+        #     endpoint="localhost:9000",
+        #     access_key="P8qQeeRKP6pHWDGuKiLi",
+        #     secret_key="v7aKWRVPoN76hNQirzefTeeWsnSsNGHlz5AHI1QU",
+        #     secure=False,
+        #     bucket_name= "imagens-brutas"
+        # )
 
 
     def processar_tiles_parana(self, satelite: str, start_date: str, end_date: str) -> None:
@@ -53,15 +53,27 @@ class TileProcessor:
 
         tile_mosaic_files = []
         results_time_estimated = []
+
+        if satelite == "S2-L2A_1":
+                tile_list = TILES_PARANA
+        else:
+            tile_list = LANDSAT_TILES_PARANA
+
         # Itera sobre cada tile definido para o estado do Paraná
-        for tile in TILES_PARANA:
+        for tile in tile_list:
             logging.info(tile)
             start = time.perf_counter()
             logger.info(f"Processando tile {tile}...")
 
             # Carrega o shapefile da grade de tiles e filtra pelo nome do tile
             tile_grid = gpd.read_file(self.tile_grid_path)
-            tile_grid = tile_grid[tile_grid["NAME"] == tile]
+            
+            if satelite == "S2-L2A_1":
+                tile_grid = tile_grid[tile_grid["NAME"] == tile]
+            else:
+                path = int(tile[:3])
+                row = int(tile[3:])
+                tile_grid = tile_grid[(tile_grid["PATH"] == path) & (tile_grid["ROW"] == row)]
 
             if tile_grid.empty:
                 logger.warning(f"Tile {tile} não encontrado na grade Sentinel-2. Pulando...")
