@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional
-from brazil_data_cube.config import SHAPEFILE_PATH, MAX_CLOUD_COVER_DEFAULT, SAT_SUPPORTED, TILES_PARANA
+from brazil_data_cube.config import SHAPEFILE_PATH, MAX_CLOUD_COVER_DEFAULT, SAT_SUPPORTED, TILES_PARANA, LANDSAT_TILES_PARANA
 from datetime import datetime
 
 
@@ -40,9 +40,9 @@ class DownloadRequest(BaseModel):
             return "parana"
 
         # Verifica se está na lista de tiles válidos
-        if v.upper() not in TILES_PARANA:
+        if v.upper() not in TILES_PARANA and v.upper() not in LANDSAT_TILES_PARANA:
             raise ValueError(
-                f"Tile '{v}' inválido. Use 'parana' ou um dos tiles válidos: {TILES_PARANA}"
+                f"Tile '{v}' inválido. Use 'parana' ou um dos tiles válidos: {TILES_PARANA} ou {LANDSAT_TILES_PARANA}"
             )
         
         return v
@@ -70,5 +70,16 @@ class DownloadRequest(BaseModel):
         if (self.lat is not None and self.lon is None) or (self.lon is not None and self.lat is None):
             raise ValueError("Latitude e longitude devem ser fornecidas juntas.")
 
+        return self
+    
+    @model_validator(mode="after")
+    def validate_id_for_sat(self):
+        if self.tile_id in LANDSAT_TILES_PARANA:
+            if self.satelite == "S2_L2A-1":
+                raise ValueError("ID não compatível com o satélite, você quis dizer landsat-2?.")
+            
+        if self.tile_id in TILES_PARANA:
+            if self.satelite == "landsat-2":
+                raise ValueError("ID não compatível com o satélite, você quis dizer S2_L2A-1?.")
         return self
 

@@ -23,7 +23,7 @@ class GeometryUtils:
             bool: True se passou no teste, False caso contrário
         """
         tiles_gdf = gpd.read_file(self.tile_grid_path)
-        if satelite == "S2-L2A_1":
+        if satelite == "S2_L2A-1":
             tile_row = tiles_gdf[tiles_gdf["NAME"] == tile_id]
         else:
             path = int(tile_id[:3])

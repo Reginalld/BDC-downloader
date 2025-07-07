@@ -1,4 +1,5 @@
 import logging
+from pydantic import ValidationError
 from brazil_data_cube.downloader.image_downloader import ImagemDownloader
 from brazil_data_cube.utils.logger import ResultManager
 from brazil_data_cube.api.models import DownloadRequest
@@ -30,7 +31,8 @@ def iniciar_download(request: DownloadRequest):
         )
 
         return {"status": "Download iniciado com sucesso"}
-    
+    except ValidationError:
+        raise
     except Exception as e:
         logger.exception("Erro ao iniciar download")
         return {"status": "erro", "mensagem": str(e)}

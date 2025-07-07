@@ -9,7 +9,7 @@ from ..utils.logger import ResultManager
 from brazil_data_cube.processors.image_processor import ImageProcessor
 from brazil_data_cube.downloader.download_bandas import DownloadBandas
 import os
-# from brazil_data_cube.minio.MinioUploader import MinioUploader
+from brazil_data_cube.minio.MinioUploader import MinioUploader
 from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
@@ -26,13 +26,13 @@ class TileProcessor:
         self.bbox_handler = BoundingBoxHandler()
         self.result_manager = ResultManager()
         self.image_processor = ImageProcessor(satelite="")  # Será redefinido na execução
-        # self.minio_uploader = MinioUploader(
-        #     endpoint="localhost:9000",
-        #     access_key="P8qQeeRKP6pHWDGuKiLi",
-        #     secret_key="v7aKWRVPoN76hNQirzefTeeWsnSsNGHlz5AHI1QU",
-        #     secure=False,
-        #     bucket_name= "imagens-brutas"
-        # )
+        self.minio_uploader = MinioUploader(
+            endpoint="localhost:9000",
+            access_key="P8qQeeRKP6pHWDGuKiLi",
+            secret_key="v7aKWRVPoN76hNQirzefTeeWsnSsNGHlz5AHI1QU",
+            secure=False,
+            bucket_name= "imagens-brutas"
+        )
 
 
     def processar_tiles_parana(self, satelite: str, start_date: str, end_date: str) -> None:
@@ -54,8 +54,8 @@ class TileProcessor:
         tile_mosaic_files = []
         results_time_estimated = []
 
-        if satelite == "S2-L2A_1":
-                tile_list = TILES_PARANA
+        if satelite == "S2_L2A-1":
+            tile_list = TILES_PARANA
         else:
             tile_list = LANDSAT_TILES_PARANA
 
@@ -68,7 +68,7 @@ class TileProcessor:
             # Carrega o shapefile da grade de tiles e filtra pelo nome do tile
             tile_grid = gpd.read_file(self.tile_grid_path)
             
-            if satelite == "S2-L2A_1":
+            if satelite == "S2_L2A-1":
                 tile_grid = tile_grid[tile_grid["NAME"] == tile]
             else:
                 path = int(tile[:3])
@@ -96,7 +96,7 @@ class TileProcessor:
             prefixo = f"{tile}_{satelite}_{start_date}_{end_date}"
                     
             logger.info("Baixando e processando imagens...")
-            DownloadBandas.baixar_bandas(image_assets,self.downloader,prefixo,satelite)
+            arquivos_baixados = DownloadBandas.baixar_bandas(image_assets,self.downloader,prefixo,satelite)
 
             # Caminho do arquivo final (mosaico) para o tile atual
             tile_mosaic_output = os.path.join(self.output_dir, f"{satelite}_{tile}_{start_date}_{end_date}_RGB.tif")
@@ -105,6 +105,10 @@ class TileProcessor:
             # Pode ser ativado no futuro quando a montagem do mosaico estiver implementada
             # self.image_processor.merge_bandas_tif(...)
 
+            data_range_folder = f"{start_date}_{end_date}"
+
+            for path in arquivos_baixados.values():
+                self.minio_uploader.upload_file(path, object_name=os.path.join(satelite, data_range_folder, tile or 'ponto', os.path.basename(path)))
 
             tile_mosaic_files.append(tile_mosaic_output)
             duration = time.perf_counter() - start
