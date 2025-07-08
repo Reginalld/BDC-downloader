@@ -24,6 +24,9 @@ def logs(satelite: str, start_date: str):
     ano_mes = datetime.strptime(start_date, "%Y-%m-%d").strftime("%Y-%m")
     log_path = Path("log") / satelite / ano_mes / "execucao.log"
 
+    if satelite == "minio":
+        log_path = Path("log") / "upload_minio.txt"
+
     if not log_path.exists():
         return {"mensagens": f"Arquivo de log não encontrado: {log_path}"}
     

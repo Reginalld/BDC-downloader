@@ -10,4 +10,6 @@ Shapely==2.1.0
 tqdm==4.67.1
 typer==0.15.3
 click==8.0.4
+minio==7.2.15
 uvicorn[standard]
+

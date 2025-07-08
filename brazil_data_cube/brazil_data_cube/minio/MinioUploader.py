@@ -24,10 +24,6 @@ class MinioUploader:
             secure=secure,
         )
         self.bucket_name = bucket_name
-
-        if not self.client.bucket_exists(bucket_name):
-            self.client.make_bucket(bucket_name)
-            logger.info(f"Bucket criado: {bucket_name}")
     
     def upload_file(self, local_path:str, object_name: str = None):
         """ Função que executa upload de um arquivo individual """
@@ -46,6 +42,11 @@ class MinioUploader:
 
         while attempt < max_retries:
             try:
+
+                if not self.client.bucket_exists(self.bucket_name):
+                    self.client.make_bucket(self.bucket_name)
+                    logger.info(f"Bucket criado: {self.bucket_name}")
+
                 time.sleep(1)
                 logger.debug(f"Tentativa {attempt + 1} de upload para: {object_name}")
                 start_time = time.perf_counter()
