@@ -166,8 +166,6 @@ class ImagemDownloader:
             # Faz o download das bandas RGB
             arquivos_baixados = DownloadBandas.baixar_bandas(image_assets, self, prefixo,satelite)
 
-            print(arquivos_baixados)
-            print("")
             # Define o nome do arquivo final
             output_name = (
                 f"{radius_final:.2f}KM_{satelite}_{tile_id}_{start_date}_{end_date}_RGB.tif"
