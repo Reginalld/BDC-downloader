@@ -192,5 +192,5 @@ class ImagemDownloader:
 
             # Prefixo no bucket pode conter data ou nome da tile
             for path in arquivos_baixados.values():
-                uploader.upload_file(path, object_name=os.path.join(satelite, data_range_folder, tile_id or 'ponto', os.path.basename(path)))
+                uploader.upload_file(path, object_name=os.path.join(satelite, tile_id or 'ponto', os.path.basename(path)))
 

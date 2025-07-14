@@ -3,6 +3,8 @@ from brazil_data_cube.api.models import DownloadRequest
 from brazil_data_cube.api.downloader import iniciar_download, estado_execucao
 from pathlib import Path
 from datetime import datetime
+from brazil_data_cube.utils.task_manager import start_download_task, get_task_status
+
 
 app = FastAPI(
     title="STAC Downloader API",
@@ -12,14 +14,20 @@ app = FastAPI(
 
 @app.post("/download")
 def download(request: DownloadRequest):
-    return iniciar_download(request)
+    task_id = start_download_task(iniciar_download, request)
+    return {"mensagem": "Download agendado", "task_id": task_id}
 
 @app.get("/status")
-def status():
+async def status():
     return {"status": estado_execucao.get_status()}
 
+@app.get("/status/{task_id}")
+def status(task_id: str):
+    return get_task_status(task_id)
+
+
 @app.get("/logs")
-def logs(satelite: str, start_date: str):
+async def logs(satelite: str, start_date: str):
 
     ano_mes = datetime.strptime(start_date, "%Y-%m-%d").strftime("%Y-%m")
     log_path = Path("log") / satelite / ano_mes / "execucao.log"

@@ -5,8 +5,7 @@ from brazil_data_cube.utils.logger import ResultManager
 from brazil_data_cube.api.models import DownloadRequest
 from brazil_data_cube.config import IMAGES_DIR
 from brazil_data_cube.api.state import EstadoExecucao
-
-logger = logging.getLogger(__name__)
+import uuid
 
 estado_execucao = EstadoExecucao()
 
@@ -14,7 +13,11 @@ def iniciar_download(request: DownloadRequest):
     try:
         # Configura logger dinâmico por satélite/ano-mês
         estado_execucao.set_running()
-        ResultManager.setup_logger(request.satelite, request.start_date)
+
+        exec_id = str(uuid.uuid4())[:8]
+        logger = ResultManager.setup_logger(request.satelite, request.start_date, exec_id)
+
+        logger.info("Início da execução do download")
 
         downloader = ImagemDownloader(output_dir=IMAGES_DIR)
 

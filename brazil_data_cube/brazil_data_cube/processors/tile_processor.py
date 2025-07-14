@@ -108,7 +108,7 @@ class TileProcessor:
             data_range_folder = f"{start_date}_{end_date}"
 
             for path in arquivos_baixados.values():
-                self.minio_uploader.upload_file(path, object_name=os.path.join(satelite, data_range_folder, tile or 'ponto', os.path.basename(path)))
+                self.minio_uploader.upload_file(path, object_name=os.path.join(satelite, tile or 'ponto', os.path.basename(path)))
 
             tile_mosaic_files.append(tile_mosaic_output)
             duration = time.perf_counter() - start

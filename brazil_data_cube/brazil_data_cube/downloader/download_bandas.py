@@ -20,7 +20,7 @@ class DownloadBandas:
         if satelite == "S2_L2A-1":
             bandas = {
                 'B04': 'red',
-                # 'B03': 'green',
+                'B03': 'green',
                 # 'B02': 'blue',
                 # 'AOT': 'AOT',
                 # 'B01': 'B01',

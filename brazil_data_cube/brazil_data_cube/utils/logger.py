@@ -111,30 +111,29 @@ class ResultManager:
         print(f"Estimativa total ({len(TILES_PARANA)} quadrantes): {estimativa_total:.2f} minutos")
         print(f"CSV salvo em: {csv_path}")
 
-    @staticmethod
-    def setup_logger(satelite: str, data: str, base_log_dir: str = "log") -> None:
-        """
-        Configura o sistema de logging para console e arquivo.
-        Args:
-            satelite (str): Nome do satélite (ex: "S2_L2A-').
-            data (str): Data inicial no formato YYYY-MM-DD.
-            base_log_dir (str): Diretório base onde salvar os logs.
- 
-        """
 
+    @staticmethod
+    def setup_logger(satelite: str, data: str, exec_id: str, base_log_dir: str = "log") -> logging.Logger:
         ano_mes = datetime.strptime(data, "%Y-%m-%d").strftime("%Y-%m")
         log_dir = Path(base_log_dir) / satelite / ano_mes
         log_dir.mkdir(parents=True, exist_ok=True)
 
-        log_file_path = log_dir / "execucao.log"
+        log_file = log_dir / f"{exec_id}.log"
+        logger_name = f"{satelite}_{exec_id}"
+        logger = logging.getLogger(logger_name)
+        logger.setLevel(logging.INFO)
 
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-            handlers=[
-                logging.FileHandler(log_file_path),
-                logging.StreamHandler()
-            ]
-        )
-        
-        logger.info(f"Logger configurado para: {log_file_path}")
+        if not logger.handlers:
+            formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s")
+            file_handler = logging.FileHandler(log_file)
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
+
+            stream_handler = logging.StreamHandler()
+            stream_handler.setFormatter(formatter)
+            logger.addHandler(stream_handler)
+
+            logger.propagate = False
+
+        logger.info(f"Logger iniciado para execução {exec_id}")
+        return logger
