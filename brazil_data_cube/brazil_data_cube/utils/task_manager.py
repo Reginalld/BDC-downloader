@@ -10,18 +10,23 @@ executor = ThreadPoolExecutor(max_workers=1)
 task_status: Dict[str, Dict] = {}
 task_status_lock = threading.Lock()
 
-def start_download_task(iniciar_download_fn, request):
-    task_id = str(uuid.uuid4())
+def start_download_task(iniciar_download_fn, request, exec_id: str):
+
+    task_id = exec_id
 
     with task_status_lock:
-        task_status[task_id] = {"status": "esperando"}
+        task_status[task_id] = {
+            "status": "esperando",
+            "satelite": request.satelite,
+            "start_date": request.start_date
+            }
 
     def task():
         try:
             with task_status_lock:
                 task_status[task_id]["status"] = "baixando"
 
-            result = iniciar_download_fn(request)
+            result = iniciar_download_fn(request, exec_id)
 
             with task_status_lock:
                 task_status[task_id]["status"] = "concluído"
@@ -32,7 +37,7 @@ def start_download_task(iniciar_download_fn, request):
                 task_status[task_id]["status"] = "erro"
                 task_status[task_id]["erro"] = str(e)
 
-    executor.submit(task)
+    future = executor.submit(task)
 
     return task_id
 

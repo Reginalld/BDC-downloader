@@ -9,17 +9,15 @@ import uuid
 
 estado_execucao = EstadoExecucao()
 
-def iniciar_download(request: DownloadRequest):
+def iniciar_download(request: DownloadRequest, exec_id: str):
     try:
         # Configura logger dinâmico por satélite/ano-mês
         estado_execucao.set_running()
-
-        exec_id = str(uuid.uuid4())[:8]
         logger = ResultManager.setup_logger(request.satelite, request.start_date, exec_id)
 
         logger.info("Início da execução do download")
 
-        downloader = ImagemDownloader(output_dir=IMAGES_DIR)
+        downloader = ImagemDownloader(logger,output_dir=IMAGES_DIR)
 
         downloader.executar_download(
             satelite=request.satelite,

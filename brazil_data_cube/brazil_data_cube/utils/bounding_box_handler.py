@@ -8,11 +8,11 @@ from .bounding_box_calculator import BoundingBoxCalculator
 from typing import List, Optional, Tuple
 
 
-logger = logging.getLogger(__name__)
 
 class BoundingBoxHandler:
-    def __init__(self, reduction_factor: float = 0.2):
+    def __init__(self, logger: logging.Logger, reduction_factor: float = 0.2):
         self.reduction_factor = reduction_factor
+        self.logger = logger
 
     def calcular_bbox_reduzido(self, tile_grid: any) -> List[float]:
         """
@@ -42,7 +42,7 @@ class BoundingBoxHandler:
         new_miny = center_y - (height / 2)
         new_maxy = center_y + (height / 2)
 
-        logger.info(f"Main_bbox ajustado: [{new_minx}, {new_miny}, {new_maxx}, {new_maxy}]")
+        self.logger.info(f"Main_bbox ajustado: [{new_minx}, {new_miny}, {new_maxx}, {new_maxy}]")
         return [new_minx, new_miny, new_maxx, new_maxy]
 
     def obter_bounding_box(self, tile_id: Optional[str], lat: Optional[float],
@@ -77,7 +77,7 @@ class BoundingBoxHandler:
                 tile_grid = tile_grid[(tile_grid["PATH"] == path) & (tile_grid["ROW"] == row)]
 
             if tile_grid.empty:
-                logger.error(f"Tile {tile_id} não encontrado na grade Sentinel-2.")
+                self.logger.error(f"Tile {tile_id} não encontrado na grade Sentinel-2.")
                 raise ValueError(f"Tile ID inválido: {tile_id}")
 
             # Extrai geometria e bounding box original
@@ -108,11 +108,11 @@ class BoundingBoxHandler:
         elif lat is not None and lon is not None:
             # Quando coordenadas são fornecidas diretamente
             main_bbox = BoundingBoxCalculator.calcular(lat, lon, radius_km)
-            logger.info("Processando sem tile ID.")
+            self.logger.info("Processando sem tile ID.")
         else:
             # Nenhuma fonte de localização fornecida
-            logger.error("É necessário fornecer latitude/longitude ou um ID de tile Sentinel-2.")
+            self.logger.error("É necessário fornecer latitude/longitude ou um ID de tile Sentinel-2.")
             raise ValueError("Faltam parâmetros para definir a área de interesse.")
 
-        logger.info(f"BBox principal: {main_bbox}")
+        self.logger.info(f"BBox principal: {main_bbox}")
         return main_bbox, lat, lon, radius_km

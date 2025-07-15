@@ -16,17 +16,16 @@ from brazil_data_cube.minio.MinioUploader import MinioUploader
 from brazil_data_cube.config import REDUCTION_FACTOR, SHAPEFILE_PATH_LANDSAT
 
 
-logger = logging.getLogger(__name__)
-
 class ImagemDownloader:
-    def __init__(self, output_dir: str):
+    def __init__(self, logger: logging.Logger, output_dir: str):
         self.output_dir = output_dir
+        self.logger = logger
         self.create_output()
 
     def create_output(self) -> None:
         """Cria diretório de saída se ele não existir."""
         os.makedirs(self.output_dir, exist_ok=True)
-        logger.info(f"Diretório de saída criado em: {self.output_dir}")
+        self.logger.info(f"Diretório de saída criado em: {self.output_dir}")
 
     def download(self, asset: dict, filename: str, request_options: dict = {}) -> Optional[str]:
         """
@@ -41,11 +40,11 @@ class ImagemDownloader:
             Optional[str]: Caminho do arquivo baixado ou None se falhar
         """
         if asset is None:
-            logger.error("Tentativa de download com asset inválido.")
+            self.logger.error("Tentativa de download com asset inválido.")
             return None
 
         filepath = os.path.join(self.output_dir, filename)
-        logger.info(f"Iniciando download da imagem para: {filepath}")
+        self.logger.info(f"Iniciando download da imagem para: {filepath}")
 
         max_retries = 3
         backoff_factor = 2.0
@@ -63,18 +62,18 @@ class ImagemDownloader:
                         if chunk:
                             fout.write(chunk)
 
-                logger.info(f"Download concluído: {filepath}")
+                self.logger.info(f"Download concluído: {filepath}")
                 return filepath
 
             except (requests.RequestException, OSError) as e:
                 attempt += 1
-                logger.warning(f"Tentativa {attempt}/{max_retries} falhou: {e}")
+                self.logger.warning(f"Tentativa {attempt}/{max_retries} falhou: {e}")
                 if attempt < max_retries:
                     sleep_time = backoff_factor ** attempt
-                    logger.info(f"Aguardando {sleep_time:.1f}s antes da próxima tentativa...")
+                    self.logger.info(f"Aguardando {sleep_time:.1f}s antes da próxima tentativa...")
                     time.sleep(sleep_time)
                 else:
-                    logger.error(f"Falha definitiva no download de {filename}: {e}")
+                    self.logger.error(f"Falha definitiva no download de {filename}: {e}")
                     return None
         
 
@@ -105,13 +104,13 @@ class ImagemDownloader:
                 max_cloud_cover (float): Porcentagem máxima de cobertura de nuvens permitida.
             """
             # Conexão com o BDC (Brazil Data Cube)
-            bdc_conn = BdcConnection().get_connection()
+            bdc_conn = BdcConnection(self.logger).get_connection()
 
             # Objeto responsável por buscar imagens via STAC
-            fetcher = SatelliteImageFetcher(bdc_conn)
+            fetcher = SatelliteImageFetcher(self.logger, bdc_conn)
 
             # Utilitário para gerar bounding box
-            bbox_handler = BoundingBoxHandler(reduction_factor=REDUCTION_FACTOR)
+            bbox_handler = BoundingBoxHandler(self.logger,reduction_factor=REDUCTION_FACTOR)
 
             ano_mes = datetime.strptime(start_date, "%Y-%m-%d").strftime("%Y-%m")
             self.output_dir = os.path.join(self.output_dir, satelite, ano_mes)
@@ -124,8 +123,9 @@ class ImagemDownloader:
 
             # Se for o estado do Paraná, delega ao TileProcessor
             if tile_id in ["Paraná", "parana"]:
-                logger.info("Iniciando tiles do Paraná")
+                self.logger.info("Iniciando tiles do Paraná")
                 TileProcessor(
+                    self.logger,
                     fetcher,
                     self,  # passa o downloader atual
                     self.output_dir,
@@ -134,7 +134,7 @@ class ImagemDownloader:
                 ).processar_tiles_parana(satelite, start_date, end_date)
                 return
 
-            logger.info(tile_id)
+            self.logger.info(tile_id)
 
             # Gera a bounding box com base nas coordenadas ou tile_id
             main_bbox, lat_final, lon_final, radius_final = bbox_handler.obter_bounding_box(
@@ -164,8 +164,8 @@ class ImagemDownloader:
             )
 
             # Faz o download das bandas RGB
-            arquivos_baixados = DownloadBandas.baixar_bandas(image_assets, self, prefixo,satelite)
-
+            arquivos_baixados = DownloadBandas(self.logger).baixar_bandas(image_assets, self, prefixo,satelite)
+            
             # Define o nome do arquivo final
             output_name = (
                 f"{radius_final:.2f}KM_{satelite}_{tile_id}_{start_date}_{end_date}_RGB.tif"

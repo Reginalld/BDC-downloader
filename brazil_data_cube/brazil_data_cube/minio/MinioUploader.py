@@ -6,9 +6,6 @@ from minio import Minio
 from minio.error import S3Error
 from brazil_data_cube.config import LOG_DIR
 
-
-
-
 class MinioUploader:
     def __init__(self, endpoint, access_key, secret_key,bucket_name, secure=False):
         self.client = Minio(

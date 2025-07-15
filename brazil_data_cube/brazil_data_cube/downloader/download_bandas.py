@@ -4,15 +4,11 @@ from tqdm import tqdm
 import logging
 from typing import Optional
 
-
-logger = logging.getLogger(__name__)
-
 class DownloadBandas:
-    def __init__(self):
-        pass
+    def __init__(self,logger: logging.Logger):
+        self.logger = logger
     
-    @staticmethod
-    def baixar_bandas(image_assets, downloader , prefixo,satelite):
+    def baixar_bandas(self, image_assets, downloader , prefixo, satelite):
         """
         Função responsável pela chamada de download de cada banda, evitando repetição onde necessário.
 
@@ -73,7 +69,7 @@ class DownloadBandas:
                     if filepath:
                         arquivos_baixados[banda] = filepath
                     else:
-                        logger.warning(f"Download falhou para banda '{banda}' ({sufixo})")
+                        self.logger.warning(f"Download falhou para banda '{banda}' ({sufixo})")
                 except Exception as e:
-                    logger.error(f"Erro ao baixar banda '{banda}': {e}")
+                    self.logger.error(f"Erro ao baixar banda '{banda}': {e}")
         return arquivos_baixados

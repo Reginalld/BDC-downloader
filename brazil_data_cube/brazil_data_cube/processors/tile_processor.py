@@ -12,19 +12,18 @@ import os
 from brazil_data_cube.minio.MinioUploader import MinioUploader
 from typing import List, Dict, Any
 
-logger = logging.getLogger(__name__)
-
 class TileProcessor:
 
-    def __init__(self, fetcher: any, downloader: any, output_dir: str,
+    def __init__(self, logger: logging.Logger, fetcher: any, downloader: any, output_dir: str,
                  tile_grid_path: str, max_cloud_cover: float):
         self.fetcher = fetcher
+        self.logger = logger
         self.downloader = downloader
         self.output_dir = output_dir
         self.tile_grid_path = tile_grid_path
         self.max_cloud_cover = max_cloud_cover
-        self.bbox_handler = BoundingBoxHandler()
-        self.result_manager = ResultManager()
+        self.bbox_handler = BoundingBoxHandler(self.logger)
+        self.result_manager = ResultManager(logger)
         self.image_processor = ImageProcessor(satelite="")  # Será redefinido na execução
         self.minio_uploader = MinioUploader(
             endpoint="localhost:9000",
@@ -47,7 +46,7 @@ class TileProcessor:
 
 
         if satelite not in SAT_SUPPORTED:
-            logger.error(f"Satélite '{satelite}' não é suportado.")
+            self.logger.error(f"Satélite '{satelite}' não é suportado.")
             self.result_manager.log_error_csv("Paraná", satelite, "Satélite não suportado")
             return
 
@@ -63,7 +62,7 @@ class TileProcessor:
         for tile in tile_list:
             logging.info(tile)
             start = time.perf_counter()
-            logger.info(f"Processando tile {tile}...")
+            self.logger.info(f"Processando tile {tile}...")
 
             # Carrega o shapefile da grade de tiles e filtra pelo nome do tile
             tile_grid = gpd.read_file(self.tile_grid_path)
@@ -76,7 +75,7 @@ class TileProcessor:
                 tile_grid = tile_grid[(tile_grid["PATH"] == path) & (tile_grid["ROW"] == row)]
 
             if tile_grid.empty:
-                logger.warning(f"Tile {tile} não encontrado na grade Sentinel-2. Pulando...")
+                self.logger.warning(f"Tile {tile} não encontrado na grade Sentinel-2. Pulando...")
                 continue
 
             # Calcula o bounding box reduzido para evitar bordas e melhorar qualidade das imagens
@@ -89,14 +88,14 @@ class TileProcessor:
             )
 
             if not image_assets:
-                logger.warning(f"Nenhuma imagem encontrada para o tile {tile}.")
+                self.logger.warning(f"Nenhuma imagem encontrada para o tile {tile}.")
                 continue
 
             # Prefixo usado nos nomes dos arquivos baixados e processados
             prefixo = f"{tile}_{satelite}_{start_date}_{end_date}"
                     
-            logger.info("Baixando e processando imagens...")
-            arquivos_baixados = DownloadBandas.baixar_bandas(image_assets,self.downloader,prefixo,satelite)
+            self.logger.info("Baixando e processando imagens...")
+            arquivos_baixados = DownloadBandas.baixar_bandas(self.logger, image_assets, self.downloader, prefixo, satelite)
 
             # Caminho do arquivo final (mosaico) para o tile atual
             tile_mosaic_output = os.path.join(self.output_dir, f"{satelite}_{tile}_{start_date}_{end_date}_RGB.tif")

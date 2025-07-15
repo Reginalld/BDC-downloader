@@ -5,11 +5,10 @@ from shapely.geometry import shape
 import logging
 from typing import Any
 
-logger = logging.getLogger(__name__)
-
 class GeometryUtils:
-    def __init__(self, tile_grid_path: str):
+    def __init__(self, logger: logging.Logger, tile_grid_path: str):
         self.tile_grid_path = tile_grid_path
+        self.logger = logger
 
     def is_good_geometry(self, item: Any, tile_id: str, satelite: str) -> bool:
         """
@@ -31,7 +30,7 @@ class GeometryUtils:
             tile_row = tiles_gdf[(tiles_gdf["PATH"] == path) & (tiles_gdf["ROW"] == row)]
 
         if tile_row.empty:
-            logger.warning(f"Tile {tile_id} não encontrado na grade do Sentinel-2.")
+            self.logger.warning(f"Tile {tile_id} não encontrado na grade do Sentinel-2.")
             return False
 
         tile_geom = tile_row.iloc[0].geometry
@@ -41,5 +40,5 @@ class GeometryUtils:
         if intersection.area / tile_geom.area >= 0.82:
             return True
         else:
-            logger.debug(f"Imagem fora do tile {tile_id} - área de interseção insuficiente.")
+            self.logger.debug(f"Imagem fora do tile {tile_id} - área de interseção insuficiente.")
             return False

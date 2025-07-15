@@ -3,13 +3,13 @@
 import pystac_client
 import logging
 
-logger = logging.getLogger(__name__)
 
 class BdcConnection:
-    def __init__(self, endpoint: str ="https://data.inpe.br/bdc/stac/v1/"):
+    def __init__(self, logger: logging.Logger, endpoint: str ="https://data.inpe.br/bdc/stac/v1/"):
         self.endpoint = endpoint
+        self.logger = logger
         self.connection = None
-        logger.info("BdcConnection inicializado.")
+        self.logger.info("BdcConnection inicializado.")
 
     def initialize(self):
         """
@@ -19,11 +19,11 @@ class BdcConnection:
             endpoint (str): URL do servidor STAC
         """
         try:
-            logger.info("Conectando ao Brazil Data Cube...")
+            self.logger.info("Conectando ao Brazil Data Cube...")
             self.connection = pystac_client.Client.open(self.endpoint)
-            logger.info("Conexão com BDC estabelecida.")
+            self.logger.info("Conexão com BDC estabelecida.")
         except Exception as e:
-            logger.critical(f"Erro ao conectar ao BDC: {e}", exc_info=True)
+            self.logger.critical(f"Erro ao conectar ao BDC: {e}", exc_info=True)
             raise RuntimeError(f"Falha na inicialização do cliente BDC: {e}")
 
     def get_connection(self):

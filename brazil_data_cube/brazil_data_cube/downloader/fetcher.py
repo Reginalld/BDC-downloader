@@ -5,13 +5,11 @@ from ..utils.logger import ResultManager
 from typing import Optional, Dict, Any
 from ..utils.geometry_utils import GeometryUtils
 
-
-
-logger = logging.getLogger(__name__)
-
 class SatelliteImageFetcher:
-    def __init__(self, connection: any):
+    def __init__(self, logger: logging.Logger, connection: any):
         self.connection = connection
+        self.logger = logger
+        self.resultmanager = ResultManager(logger)
 
     def fetch_image(self, satelite: str, bounding_box: list, start_date: str,
                     end_date: str, max_cloud_cover: float, tile_grid_path: str,
@@ -32,7 +30,7 @@ class SatelliteImageFetcher:
             Optional[Dict]: Assets da imagem ou None se não encontrar
         """
         try:
-            logger.info(f"Buscando imagens do {satelite}...")
+            self.logger.info(f"Buscando imagens do {satelite}...")
 
             # Construindo filtro com base no satélite
             filt = self._build_filter(satelite, max_cloud_cover)
@@ -49,21 +47,21 @@ class SatelliteImageFetcher:
 
             if tile:
                 if not items:
-                    logger.error(f"Nenhuma imagem disponível para o tile '{tile}'.")
-                    ResultManager().log_error_csv(tile, satelite, "Nenhuma imagem encontrada.",start_date)
+                    self.logger.error(f"Nenhuma imagem disponível para o tile '{tile}'.")
+                    self.resultmanager.log_error_csv(tile, satelite, "Nenhuma imagem encontrada.",start_date)
                     return None
 
-                geometry_utils = GeometryUtils(tile_grid_path)  # Instancia utilitário de geometria
+                geometry_utils = GeometryUtils(self.logger, tile_grid_path)  # Instancia utilitário de geometria
                 # Filtra imagens que cobrem adequadamente o tile
                 items = [item for item in items if geometry_utils.is_good_geometry(item, tile, satelite)]
 
                 if not items:
-                    logger.warning(f"Nenhuma imagem passou no filtro de geometria para o tile: {tile}")
-                    ResultManager().log_error_csv(tile, satelite, "Imagem não passou no filtro de geometria.",start_date)
+                    self.logger.warning(f"Nenhuma imagem passou no filtro de geometria para o tile: {tile}")
+                    self.resultmanager.log_error_csv(tile, satelite, "Imagem não passou no filtro de geometria.",start_date)
                     return None
             else:
                 if not items:
-                    logger.warning("Nenhuma imagem disponível para os parâmetros fornecidos.")
+                    self.logger.warning("Nenhuma imagem disponível para os parâmetros fornecidos.")
                     return None
 
                 # Tenta extrair o ID do tile usando os properties do BDC da primeira imagem
@@ -77,14 +75,14 @@ class SatelliteImageFetcher:
             best_item = items[0]
 
             cloud_cover = best_item.properties.get('eo:cloud_cover', 'desconhecido')
-            logger.info(f"Imagem selecionada com {cloud_cover}% de nuvem.")
+            self.logger.info(f"Imagem selecionada com {cloud_cover}% de nuvem.")
 
             return best_item.assets  # Retorna os assets da imagem selecionada
 
         except Exception as e:
             erro_msg = str(e)
-            logger.error(f"Erro ao obter imagem do {satelite}: {erro_msg}", exc_info=True)
-            ResultManager().log_error_csv(tile, satelite, erro_msg,start_date)
+            self.logger.error(f"Erro ao obter imagem do {satelite}: {erro_msg}", exc_info=True)
+            self.resultmanager.log_error_csv(tile, satelite, erro_msg, start_date)
             return None
 
     def _build_filter(self, satelite, max_cloud_cover):

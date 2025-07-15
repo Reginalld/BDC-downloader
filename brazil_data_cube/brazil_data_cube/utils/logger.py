@@ -10,14 +10,12 @@ from pathlib import Path
 from typing import List, Dict, Any
 
 
-logger = logging.getLogger(__name__)
 
 class ResultManager:
-    def __init__(self):
-        pass
+    def __init__(self, logger: logging.Logger):
+        self.logger = logger
 
-    @staticmethod
-    def log_error_csv(tile: str, satelite: str, erro_msg: str, start_date: str, base_log_dir: str = "log") -> None:
+    def log_error_csv(self,tile: str, satelite: str, erro_msg: str, start_date: str, base_log_dir: str = "log") -> None:
         """
         Registra erros no CSV de falhas, organizados por satélite e ano/mês.
 
@@ -49,9 +47,9 @@ class ResultManager:
                     "Satelite": satelite,
                     "Erro": erro_msg
                 })
-            logger.info(f"Erro registrado no CSV: {tile} - {satelite}")
+            self.logger.info(f"Erro registrado no CSV: {tile} - {satelite}")
         except Exception as e:
-            logger.critical(f"Falha ao gravar no CSV de erros: {e}")
+            self.logger.critical(f"Falha ao gravar no CSV de erros: {e}")
             
     def gerenciar_resultados(self, tile_mosaic_files: List[str], results_time_estimated: List[Dict[str, float]], satelite: str, start_date: str) -> None:
         """
@@ -66,7 +64,7 @@ class ResultManager:
             end_date (str): Data final do download
         """
         if not tile_mosaic_files:
-            logger.error("Nenhum tile foi baixado.")
+            self.logger.error("Nenhum tile foi baixado.")
             return
 
         executed_at = datetime.now().strftime('%Y-%m-%d %H_%M_%S')
