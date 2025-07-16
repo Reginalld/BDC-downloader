@@ -5,7 +5,7 @@ class Downloadstatus(str, Enum):
     idle = 'idle'
     running = 'running'
 
-class EstadoExecucao:
+class ExecutionState:
     def __init__(self):
         self.status = Downloadstatus.idle
         self._lock = Lock()

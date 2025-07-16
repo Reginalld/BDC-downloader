@@ -14,7 +14,7 @@ class BoundingBoxHandler:
         self.reduction_factor = reduction_factor
         self.logger = logger
 
-    def calcular_bbox_reduzido(self, tile_grid: any) -> List[float]:
+    def calculate_reduced_bbox(self, tile_grid: any) -> List[float]:
         """
         Calcula uma bounding box reduzida com base na geometria do tile.
         
@@ -47,7 +47,7 @@ class BoundingBoxHandler:
 
     def obter_bounding_box(self, tile_id: Optional[str], lat: Optional[float],
                            lon: Optional[float], radius_km: float,
-                           tile_grid_path: str, satelite: str) -> Tuple[List[float], float, float, float]:
+                           tile_grid_path: str, satellite: str) -> Tuple[List[float], float, float, float]:
         """
         Gera uma bounding box com base em tile_id ou coordenadas.
         
@@ -69,7 +69,7 @@ class BoundingBoxHandler:
 
             # Carrega shapefile e filtra o tile pelo ID
             tile_grid = gpd.read_file(tile_grid_path)
-            if satelite == "S2_L2A-1":    
+            if satellite == "S2_L2A-1":    
                 tile_grid = tile_grid[tile_grid["NAME"] == tile_id]
             else:
                 path = int(tile_id[:3])
@@ -107,7 +107,7 @@ class BoundingBoxHandler:
 
         elif lat is not None and lon is not None:
             # Quando coordenadas são fornecidas diretamente
-            main_bbox = BoundingBoxCalculator.calcular(lat, lon, radius_km)
+            main_bbox = BoundingBoxCalculator.calculate(lat, lon, radius_km)
             self.logger.info("Processando sem tile ID.")
         else:
             # Nenhuma fonte de localização fornecida

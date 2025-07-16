@@ -59,8 +59,8 @@ class MinioUploader:
     def upload_folder(self, folder_path: str, prefix: str = ""):
         """Faz upload recursivo de todos os arquivos de um diretório."""
         self.logger.info(f"Iniciando upload recursivo da pasta: {folder_path} com prefixo '{prefix}'")
-        arquivos_enviados = 0
-        arquivos_falharam = 0
+        files_uploaded = 0
+        files_failed = 0
 
         for root, _, files in os.walk(folder_path):
             for file in files:
@@ -72,11 +72,11 @@ class MinioUploader:
                 success = self.upload_file(local_file_path, object_name)
 
                 if success:
-                    arquivos_enviados += 1
+                    files_uploaded += 1
                 else:
-                    arquivos_falharam += 1
+                    files_failed += 1
 
-        self.logger.info(f"Upload de pasta concluído: {arquivos_enviados} enviados com sucesso, {arquivos_falharam} falharam.")
+        self.logger.info(f"Upload de pasta concluído: {files_uploaded} enviados com sucesso, {files_failed} falharam.")
     
     def object_exists(self, object_name: str) -> bool:
         """

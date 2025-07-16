@@ -1,26 +1,26 @@
 import logging
 from pydantic import ValidationError
-from brazil_data_cube.downloader.image_downloader import ImagemDownloader
+from brazil_data_cube.downloader.image_downloader import ImageDownloader
 from brazil_data_cube.utils.logger import ResultManager
 from brazil_data_cube.api.models import DownloadRequest
 from brazil_data_cube.config import IMAGES_DIR
-from brazil_data_cube.api.state import EstadoExecucao
+from brazil_data_cube.api.state import ExecutionState
 import uuid
 
-estado_execucao = EstadoExecucao()
+execution_state = ExecutionState()
 
-def iniciar_download(request: DownloadRequest, exec_id: str):
+def start_download(request: DownloadRequest, exec_id: str):
     try:
         # Configura logger dinâmico por satélite/ano-mês
-        estado_execucao.set_running()
-        logger = ResultManager.setup_logger(request.satelite, request.start_date, exec_id)
+        execution_state.set_running()
+        logger = ResultManager.setup_logger(request.satellite, request.start_date, exec_id)
 
         logger.info("Início da execução do download")
 
-        downloader = ImagemDownloader(logger,output_dir=IMAGES_DIR)
+        downloader = ImageDownloader(logger,output_dir=IMAGES_DIR)
 
-        downloader.executar_download(
-            satelite=request.satelite,
+        downloader.execute_download(
+            satellite=request.satellite,
             lat=request.lat,
             lon=request.lon,
             tile_id=request.tile_id,
@@ -39,4 +39,4 @@ def iniciar_download(request: DownloadRequest, exec_id: str):
         return {"status": "erro", "mensagem": str(e)}
     
     finally:
-        estado_execucao.set_idle()
+        execution_state.set_idle()

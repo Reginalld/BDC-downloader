@@ -11,12 +11,12 @@ from brazil_data_cube.utils.bdc_connection import BdcConnection
 from brazil_data_cube.downloader.fetcher import SatelliteImageFetcher
 from brazil_data_cube.utils.bounding_box_handler import BoundingBoxHandler
 from brazil_data_cube.processors.tile_processor import TileProcessor
-from brazil_data_cube.downloader.download_bandas import DownloadBandas
+from brazil_data_cube.downloader.download_bands import DownloadBands
 from brazil_data_cube.minio.MinioUploader import MinioUploader
 from brazil_data_cube.config import REDUCTION_FACTOR, SHAPEFILE_PATH_LANDSAT
 
 
-class ImagemDownloader:
+class ImageDownloader:
     def __init__(self, logger: logging.Logger, output_dir: str):
         self.output_dir = output_dir
         self.logger = logger
@@ -77,9 +77,9 @@ class ImagemDownloader:
                     return None
         
 
-    def executar_download(
+    def execute_download(
             self,
-            satelite: str,
+            satellite: str,
             lat: Optional[float],
             lon: Optional[float],
             tile_id: Optional[str],
@@ -103,6 +103,7 @@ class ImagemDownloader:
                 tile_grid_path (str): Caminho para o shapefile dos tiles.
                 max_cloud_cover (float): Porcentagem máxima de cobertura de nuvens permitida.
             """
+
             # Conexão com o BDC (Brazil Data Cube)
             bdc_conn = BdcConnection(self.logger).get_connection()
 
@@ -121,13 +122,13 @@ class ImagemDownloader:
                 secure=False
             )
 
-            ano_mes = datetime.strptime(start_date, "%Y-%m-%d").strftime("%Y-%m")
-            self.output_dir = os.path.join(self.output_dir, satelite, ano_mes)
+            year_month = datetime.strptime(start_date, "%Y-%m-%d").strftime("%Y-%m")
+            self.output_dir = os.path.join(self.output_dir, satellite, year_month)
             self.create_output()
 
-            if "landsat" in satelite.lower():
+            if "landsat" in satellite.lower():
                 tile_grid_path = SHAPEFILE_PATH_LANDSAT
-            elif "s2" in satelite.lower() or "sentinel" in satelite.lower(): # Ex: "S2_L2A-1" ou "sentinel-2"
+            elif "s2" in satellite.lower() or "sentinel" in satellite.lower(): # Ex: "S2_L2A-1" ou "sentinel-2"
                 tile_grid_path = tile_grid_path
 
             # Se for o estado do Paraná, delega ao TileProcessor
@@ -141,19 +142,19 @@ class ImagemDownloader:
                     tile_grid_path,
                     max_cloud_cover,
                     uploader
-                ).processar_tiles_parana(satelite, start_date, end_date)
+                ).process_parana_tiles(satellite, start_date, end_date)
                 return
 
             self.logger.info(tile_id)
 
             # Gera a bounding box com base nas coordenadas ou tile_id
             main_bbox, lat_final, lon_final, radius_final = bbox_handler.obter_bounding_box(
-                tile_id, lat, lon, radius_km, tile_grid_path, satelite
+                tile_id, lat, lon, radius_km, tile_grid_path, satellite
             )
 
             # Busca as imagens dentro dos critérios definidos
             image_assets = fetcher.fetch_image(
-                satelite,
+                satellite,
                 main_bbox,
                 start_date,
                 end_date,
@@ -167,20 +168,20 @@ class ImagemDownloader:
                 return
 
             # Prefixo base para nomear arquivos
-            prefixo = (
-                f"{tile_id}_{radius_final:.2f}KM_{satelite}_{start_date}_{end_date}"
+            prefix = (
+                f"{tile_id}_{radius_final:.2f}KM_{satellite}_{start_date}_{end_date}"
                 if tile_id else
-                f"{radius_final:.2f}KM_{satelite}_{lat_final:.3f}_{lon_final:.3f}_{start_date}_{end_date}"
+                f"{radius_final:.2f}KM_{satellite}_{lat_final:.3f}_{lon_final:.3f}_{start_date}_{end_date}"
             )
 
             # Faz o download das bandas RGB
-            arquivos_baixados = DownloadBandas(self.logger).baixar_bandas(image_assets, self, prefixo, satelite, uploader, tile_id or 'ponto')
+            downloaded_files = DownloadBands(self.logger).download_bands(image_assets, self, prefix, satellite, uploader, tile_id or 'ponto')
             
             # Define o nome do arquivo final
             output_name = (
-                f"{radius_final:.2f}KM_{satelite}_{tile_id}_{start_date}_{end_date}_RGB.tif"
+                f"{radius_final:.2f}KM_{satellite}_{tile_id}_{start_date}_{end_date}_RGB.tif"
                 if tile_id else
-                f"{radius_final:.2f}KM_{satelite}_{lat_final:.3f}_{lon_final:.3f}_{start_date}_{end_date}_RGB.tif"
+                f"{radius_final:.2f}KM_{satellite}_{lat_final:.3f}_{lon_final:.3f}_{start_date}_{end_date}_RGB.tif"
             )
 
             # Caminho completo do arquivo final
@@ -192,6 +193,6 @@ class ImagemDownloader:
             data_range_folder = f"{start_date}_{end_date}"
 
             # Prefixo no bucket pode conter data ou nome da tile
-            for path in arquivos_baixados.values():
-                uploader.upload_file(path, object_name=os.path.join(satelite, tile_id or 'ponto', os.path.basename(path)))
+            for path in downloaded_files.values():
+                uploader.upload_file(path, object_name=os.path.join(satellite, tile_id or 'ponto', os.path.basename(path)))
 

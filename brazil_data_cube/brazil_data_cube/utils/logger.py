@@ -15,7 +15,7 @@ class ResultManager:
     def __init__(self, logger: logging.Logger):
         self.logger = logger
 
-    def log_error_csv(self,tile: str, satelite: str, erro_msg: str, start_date: str, base_log_dir: str = "log") -> None:
+    def log_error_csv(self,tile: str, satellite: str, error_msg: str, start_date: str, base_log_dir: str = "log") -> None:
         """
         Registra erros no CSV de falhas, organizados por satélite e ano/mês.
 
@@ -26,8 +26,8 @@ class ResultManager:
             start_date (str): Data de início da execução (formato YYYY-MM-DD).
             base_log_dir (str): Caminho base onde salvar os logs.
         """
-        ano_mes = datetime.strptime(start_date, "%Y-%m-%d").strftime("%Y-%m")
-        log_dir = Path(base_log_dir) / satelite / ano_mes
+        year_month = datetime.strptime(start_date, "%Y-%m-%d").strftime("%Y-%m")
+        log_dir = Path(base_log_dir) / satellite / year_month
         log_dir.mkdir(parents=True, exist_ok=True)
 
         csv_path = log_dir / "erros.csv"
@@ -44,14 +44,14 @@ class ResultManager:
                 writer.writerow({
                     "Data": datetime.now().isoformat(timespec='seconds'),
                     "Tile_id": tile,
-                    "Satelite": satelite,
-                    "Erro": erro_msg
+                    "Satelite": satellite,
+                    "Erro": error_msg
                 })
-            self.logger.info(f"Erro registrado no CSV: {tile} - {satelite}")
+            self.logger.info(f"Erro registrado no CSV: {tile} - {satellite}")
         except Exception as e:
             self.logger.critical(f"Falha ao gravar no CSV de erros: {e}")
             
-    def gerenciar_resultados(self, tile_mosaic_files: List[str], results_time_estimated: List[Dict[str, float]], satelite: str, start_date: str) -> None:
+    def manage_results(self, tile_mosaic_files: List[str], results_time_estimated: List[Dict[str, float]], satellite: str, start_date: str) -> None:
         """
         Gera relatórios de tempo 
         
@@ -70,24 +70,24 @@ class ResultManager:
         executed_at = datetime.now().strftime('%Y-%m-%d %H_%M_%S')
         time_stamp_str = datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
 
-        df = self._criar_dataframe(results_time_estimated, executed_at)
-        media = df["Duracao_minutos"].mean().round(2)
-        estimativa_total = (media * len(tile_mosaic_files)).__round__(2)
+        df = self.create_dataframe(results_time_estimated, executed_at)
+        avarage = df["Duracao_minutos"].mean().round(2)
+        total_estimate = (avarage * len(tile_mosaic_files)).__round__(2)
 
-        df = self._adicionar_resumo(df, executed_at, media, estimativa_total)
+        df = self.add_sumarry(df, executed_at, avarage, total_estimate)
 
-        ano_mes = datetime.strptime(start_date, "%Y-%m-%d").strftime("%Y-%m")
+        year_month = datetime.strptime(start_date, "%Y-%m-%d").strftime("%Y-%m")
         base_log_dir= 'log'
-        log_dir = Path(base_log_dir) / satelite / ano_mes
+        log_dir = Path(base_log_dir) / satellite / year_month
         log_dir.mkdir(parents=True, exist_ok=True)
 
         csv_path = log_dir / f"tempo_downloads_{time_stamp_str}.csv"
         df.to_csv(csv_path, index=False)
 
-        self._imprimir_resumo(media, estimativa_total, csv_path)
+        self.print_sumary(avarage, total_estimate, csv_path)
 
 
-    def _criar_dataframe(self, results_time_estimated, executed_at):
+    def create_dataframe(self, results_time_estimated, executed_at):
         return pd.DataFrame([
             {
                 "Tile_id": entry["Tile_id"],
@@ -97,27 +97,27 @@ class ResultManager:
             for entry in results_time_estimated
         ])
 
-    def _adicionar_resumo(self, df, executed_at, media, estimativa_total):
+    def add_sumarry(self, df, executed_at, avarage, total_estimate):
         summary_df = pd.DataFrame([
-            {"Tile_id": "MÉDIA", "Duracao_minutos": media, "executed_at": executed_at},
-            {"Tile_id": "ESTIMATIVA_TOTAL", "Duracao_minutos": estimativa_total, "executed_at": executed_at}
+            {"Tile_id": "MÉDIA", "Duracao_minutos": avarage, "executed_at": executed_at},
+            {"Tile_id": "total_estimate", "Duracao_minutos": total_estimate, "executed_at": executed_at}
         ])
         return pd.concat([df, summary_df], ignore_index=True)
 
-    def _imprimir_resumo(self, media, estimativa_total, csv_path):
-        print(f"Média por quadrante: {media:.2f} minutos")
-        print(f"Estimativa total ({len(TILES_PARANA)} quadrantes): {estimativa_total:.2f} minutos")
+    def print_sumary(self, avarage, total_estimate, csv_path):
+        print(f"Média por quadrante: {avarage:.2f} minutos")
+        print(f"Estimativa total ({len(TILES_PARANA)} quadrantes): {total_estimate:.2f} minutos")
         print(f"CSV salvo em: {csv_path}")
 
 
     @staticmethod
-    def setup_logger(satelite: str, data: str, exec_id: str, base_log_dir: str = "log") -> logging.Logger:
-        ano_mes = datetime.strptime(data, "%Y-%m-%d").strftime("%Y-%m")
-        log_dir = Path(base_log_dir) / satelite / ano_mes
+    def setup_logger(satellite: str, data: str, exec_id: str, base_log_dir: str = "log") -> logging.Logger:
+        year_month = datetime.strptime(data, "%Y-%m-%d").strftime("%Y-%m")
+        log_dir = Path(base_log_dir) / satellite / year_month
         log_dir.mkdir(parents=True, exist_ok=True)
 
         log_file = log_dir / f"{exec_id}.log"
-        logger_name = f"{satelite}_{exec_id}"
+        logger_name = f"{satellite}_{exec_id}"
         logger = logging.getLogger(logger_name)
         logger.setLevel(logging.INFO)
 

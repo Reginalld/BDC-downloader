@@ -1,6 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from brazil_data_cube.api.models import DownloadRequest
-from brazil_data_cube.api.downloader import iniciar_download, estado_execucao
+from brazil_data_cube.api.downloader import start_download, execution_state
 from pathlib import Path
 from datetime import datetime
 from brazil_data_cube.utils.task_manager import start_download_task, get_task_status
@@ -16,12 +16,12 @@ app = FastAPI(
 @app.post("/download")
 def download(request: DownloadRequest):
     exec_id = str(uuid.uuid4())[:8]
-    task_id = start_download_task(iniciar_download, request, exec_id=exec_id)
+    task_id = start_download_task(start_download, request, exec_id=exec_id)
     return {"mensagem": "Download agendado", "task_id": task_id}
 
 @app.get("/status")
 async def status():
-    return {"status": estado_execucao.get_status()}
+    return {"status": execution_state.get_status()}
 
 @app.get("/status/{task_id}")
 def status(task_id: str):

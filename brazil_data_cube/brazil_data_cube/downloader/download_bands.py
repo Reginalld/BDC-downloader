@@ -4,17 +4,17 @@ import logging
 from typing import Optional
 from minio.error import S3Error
 
-class DownloadBandas:
+class DownloadBands:
     def __init__(self,logger: logging.Logger):
         self.logger = logger
     
-    def baixar_bandas(self, image_assets, downloader , prefixo, satelite, minio_uploader, tile_id):
+    def download_bands(self, image_assets, downloader , prefix, satellite, minio_uploader, tile_id):
         """
         Função responsável pela chamada de download de cada banda, evitando repetição onde necessário.
 
         """
-        if satelite == "S2_L2A-1":
-            bandas = {
+        if satellite == "S2_L2A-1":
+            bands = {
                 'B04': 'red',
                 'B03': 'green',
                 # 'B02': 'blue',
@@ -34,8 +34,8 @@ class DownloadBandas:
                 # 'WVP': 'WVP',
                 # 'MTD_TL': 'MTD_TL'
             }
-        elif satelite == "landsat-2":
-            bandas = {
+        elif satellite == "landsat-2":
+            bands = {
                 'ang': 'ang',
                 'red': 'red',
                 'blue': 'blue',
@@ -61,24 +61,24 @@ class DownloadBandas:
                 # 'qa_aerosol': 'qa_aerosol'
             }
 
-        arquivos_baixados = {}
+        download_files = {}
 
-        for banda, sufixo in bandas.items():
-            if banda in image_assets:
-                filename = f"{prefixo}_{sufixo}.tif"
-                object_name = os.path.join(satelite, tile_id or 'ponto', filename).replace("\\", "/")
+        for band, suffix in bands.items():
+            if band in image_assets:
+                filename = f"{prefix}_{suffix}.tif"
+                object_name = os.path.join(satellite, tile_id or 'ponto', filename).replace("\\", "/")
 
                 # Verifica se já existe no MinIO
                 if minio_uploader.object_exists(object_name):
                     continue
 
                 try:
-                    filepath = downloader.download(image_assets[banda], filename)
+                    filepath = downloader.download(image_assets[band], filename)
                     if filepath:
-                        arquivos_baixados[banda] = filepath
+                        download_files[band] = filepath
                     else:
-                        self.logger.warning(f"Download falhou para banda '{banda}' ({sufixo})")
+                        self.logger.warning(f"Download falhou para banda '{band}' ({suffix})")
                 except Exception as e:
-                    self.logger.error(f"Erro ao baixar banda '{banda}': {e}")
+                    self.logger.error(f"Erro ao baixar banda '{band}': {e}")
 
-        return arquivos_baixados
+        return download_files

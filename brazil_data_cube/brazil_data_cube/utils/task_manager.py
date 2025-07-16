@@ -10,14 +10,14 @@ executor = ThreadPoolExecutor(max_workers=1)
 task_status: Dict[str, Dict] = {}
 task_status_lock = threading.Lock()
 
-def start_download_task(iniciar_download_fn, request, exec_id: str):
+def start_download_task(start_download, request, exec_id: str):
 
     task_id = exec_id
 
     with task_status_lock:
         task_status[task_id] = {
             "status": "esperando",
-            "satelite": request.satelite,
+            "satellite": request.satellite,
             "start_date": request.start_date
             }
 
@@ -26,7 +26,7 @@ def start_download_task(iniciar_download_fn, request, exec_id: str):
             with task_status_lock:
                 task_status[task_id]["status"] = "baixando"
 
-            result = iniciar_download_fn(request, exec_id)
+            result = start_download(request, exec_id)
 
             with task_status_lock:
                 task_status[task_id]["status"] = "concluído"

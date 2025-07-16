@@ -1,13 +1,10 @@
 # Importa o Typer para criar uma interface de linha de comando
 import typer
+import logging
 
-from typing import List, Optional
-from brazil_data_cube.downloader.image_downloader import ImagemDownloader
+from brazil_data_cube.downloader.image_downloader import ImageDownloader
 from brazil_data_cube.utils.logger import ResultManager
 from brazil_data_cube.config import IMAGES_DIR, SHAPEFILE_PATH, MAX_CLOUD_COVER_DEFAULT
-
-
-import logging
 
 # Instância do Typer para CLI
 app = typer.Typer()
@@ -15,7 +12,7 @@ app = typer.Typer()
 # Define o comando principal da aplicação
 @app.command()
 def main(
-    satelite: str = typer.Argument(..., help="Escolha um satélite (ex: S2_L2A-1)"),
+    satellite: str = typer.Argument(..., help="Escolha um satélite (ex: S2_L2A-1)"),
     lat: float = typer.Option(None, help="Latitude da área de interesse"),
     lon: float = typer.Option(None, help="Longitude da área de interesse"),
     tile_id: str = typer.Option(None, help="ID do tile Sentinel-2 (ex: '21JYN')"),
@@ -31,13 +28,13 @@ def main(
     """
 
     # Configuração do logger 
-    ResultManager.setup_logger(satelite, start_date)
+    ResultManager.setup_logger(satellite, start_date)
     logger = logging.getLogger(__name__)
 
 
-    imagem_downloader = ImagemDownloader(output_dir)
-    imagem_downloader.executar_download(
-        satelite, lat, lon, tile_id, radius_km,
+    image_downloader = ImageDownloader(output_dir)
+    image_downloader.execute_download(
+        satellite, lat, lon, tile_id, radius_km,
         start_date, end_date, tile_grid_path, max_cloud_cover
     )
 

@@ -5,8 +5,8 @@ from datetime import datetime
 
 
 class DownloadRequest(BaseModel):
-    satelite: str 
-    
+
+    satellite: str 
     lat: Optional[float] = Field(None, ge=-90.0, le=90.0)
     lon: Optional[float] = Field(None, ge=-180.0, le=180.0)
     tile_id: Optional[str] = Field(
@@ -21,7 +21,7 @@ class DownloadRequest(BaseModel):
     tile_grid_path: str = SHAPEFILE_PATH
     max_cloud_cover: float = MAX_CLOUD_COVER_DEFAULT
 
-    @field_validator("satelite")
+    @field_validator("satellite")
     @classmethod
     def validate_sat(cls, v):
         if v not in SAT_SUPPORTED:
@@ -75,11 +75,11 @@ class DownloadRequest(BaseModel):
     @model_validator(mode="after")
     def validate_id_for_sat(self):
         if self.tile_id in LANDSAT_TILES_PARANA:
-            if self.satelite == "S2_L2A-1":
+            if self.satellite == "S2_L2A-1":
                 raise ValueError("ID não compatível com o satélite, você quis dizer landsat-2?.")
             
         if self.tile_id in TILES_PARANA:
-            if self.satelite == "landsat-2":
+            if self.satellite == "landsat-2":
                 raise ValueError("ID não compatível com o satélite, você quis dizer S2_L2A-1?.")
         return self
 

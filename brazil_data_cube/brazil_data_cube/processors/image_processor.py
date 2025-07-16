@@ -11,8 +11,8 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 class ImageProcessor:
-    def __init__(self, satelite: str):
-        self.satelite = satelite
+    def __init__(self, satellite: str):
+        self.satellite = satellite
 
     def merge_bandas_tif(
         self,
