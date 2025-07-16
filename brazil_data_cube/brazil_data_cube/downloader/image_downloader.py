@@ -112,6 +112,15 @@ class ImagemDownloader:
             # Utilitário para gerar bounding box
             bbox_handler = BoundingBoxHandler(self.logger,reduction_factor=REDUCTION_FACTOR)
 
+
+            uploader = MinioUploader(
+                endpoint="localhost:9000",
+                access_key="P8qQeeRKP6pHWDGuKiLi",
+                secret_key="v7aKWRVPoN76hNQirzefTeeWsnSsNGHlz5AHI1QU",
+                bucket_name="imagens-brutas",
+                secure=False
+            )
+
             ano_mes = datetime.strptime(start_date, "%Y-%m-%d").strftime("%Y-%m")
             self.output_dir = os.path.join(self.output_dir, satelite, ano_mes)
             self.create_output()
@@ -130,7 +139,8 @@ class ImagemDownloader:
                     self,  # passa o downloader atual
                     self.output_dir,
                     tile_grid_path,
-                    max_cloud_cover
+                    max_cloud_cover,
+                    uploader
                 ).processar_tiles_parana(satelite, start_date, end_date)
                 return
 
@@ -164,7 +174,7 @@ class ImagemDownloader:
             )
 
             # Faz o download das bandas RGB
-            arquivos_baixados = DownloadBandas(self.logger).baixar_bandas(image_assets, self, prefixo,satelite)
+            arquivos_baixados = DownloadBandas(self.logger).baixar_bandas(image_assets, self, prefixo, satelite, uploader, tile_id or 'ponto')
             
             # Define o nome do arquivo final
             output_name = (
@@ -178,15 +188,6 @@ class ImagemDownloader:
 
             # Aqui poderia vir o merge das bandas RGB se necessário
             # ImageProcessor(satelite).merge_rgb_tif(..., output_path)
-
-            if arquivos_baixados:
-                uploader = MinioUploader(
-                    endpoint="localhost:9000",
-                    access_key="P8qQeeRKP6pHWDGuKiLi",
-                    secret_key="v7aKWRVPoN76hNQirzefTeeWsnSsNGHlz5AHI1QU",
-                    bucket_name="imagens-brutas",
-                    secure=False
-                )
             
             data_range_folder = f"{start_date}_{end_date}"
 

@@ -15,7 +15,7 @@ from typing import List, Dict, Any
 class TileProcessor:
 
     def __init__(self, logger: logging.Logger, fetcher: any, downloader: any, output_dir: str,
-                 tile_grid_path: str, max_cloud_cover: float):
+                 tile_grid_path: str, max_cloud_cover: float, minio_uploader: any):
         self.fetcher = fetcher
         self.logger = logger
         self.downloader = downloader
@@ -25,14 +25,7 @@ class TileProcessor:
         self.bbox_handler = BoundingBoxHandler(self.logger)
         self.result_manager = ResultManager(logger)
         self.image_processor = ImageProcessor(satelite="")  # Será redefinido na execução
-        self.minio_uploader = MinioUploader(
-            endpoint="localhost:9000",
-            access_key="P8qQeeRKP6pHWDGuKiLi",
-            secret_key="v7aKWRVPoN76hNQirzefTeeWsnSsNGHlz5AHI1QU",
-            secure=False,
-            bucket_name= "imagens-brutas"
-        )
-
+        self.minio_uploader = minio_uploader
 
     def processar_tiles_parana(self, satelite: str, start_date: str, end_date: str) -> None:
         """
@@ -95,7 +88,7 @@ class TileProcessor:
             prefixo = f"{tile}_{satelite}_{start_date}_{end_date}"
                     
             self.logger.info("Baixando e processando imagens...")
-            arquivos_baixados = DownloadBandas.baixar_bandas(self.logger, image_assets, self.downloader, prefixo, satelite)
+            arquivos_baixados = DownloadBandas(self.logger).baixar_bandas(image_assets, self.downloader, prefixo, satelite, self.minio_uploader, tile)
 
             # Caminho do arquivo final (mosaico) para o tile atual
             tile_mosaic_output = os.path.join(self.output_dir, f"{satelite}_{tile}_{start_date}_{end_date}_RGB.tif")

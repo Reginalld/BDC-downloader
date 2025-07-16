@@ -1,14 +1,14 @@
 import os
-import requests
 from tqdm import tqdm
 import logging
 from typing import Optional
+from minio.error import S3Error
 
 class DownloadBandas:
     def __init__(self,logger: logging.Logger):
         self.logger = logger
     
-    def baixar_bandas(self, image_assets, downloader , prefixo, satelite):
+    def baixar_bandas(self, image_assets, downloader , prefixo, satelite, minio_uploader, tile_id):
         """
         Função responsável pela chamada de download de cada banda, evitando repetição onde necessário.
 
@@ -62,14 +62,23 @@ class DownloadBandas:
             }
 
         arquivos_baixados = {}
+
         for banda, sufixo in bandas.items():
             if banda in image_assets:
+                filename = f"{prefixo}_{sufixo}.tif"
+                object_name = os.path.join(satelite, tile_id or 'ponto', filename).replace("\\", "/")
+
+                # Verifica se já existe no MinIO
+                if minio_uploader.object_exists(object_name):
+                    continue
+
                 try:
-                    filepath = downloader.download(image_assets[banda], f"{prefixo}_{sufixo}")
+                    filepath = downloader.download(image_assets[banda], filename)
                     if filepath:
                         arquivos_baixados[banda] = filepath
                     else:
                         self.logger.warning(f"Download falhou para banda '{banda}' ({sufixo})")
                 except Exception as e:
                     self.logger.error(f"Erro ao baixar banda '{banda}': {e}")
+
         return arquivos_baixados

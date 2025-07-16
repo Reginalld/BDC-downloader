@@ -77,6 +77,19 @@ class MinioUploader:
                     arquivos_falharam += 1
 
         self.logger.info(f"Upload de pasta concluído: {arquivos_enviados} enviados com sucesso, {arquivos_falharam} falharam.")
+    
+    def object_exists(self, object_name: str) -> bool:
+        """
+        Verifica se um objeto já existe no bucket.
+        """
+        try:
+            self.client.stat_object(self.bucket_name, object_name)
+            self.logger.info(f"[PULADO] Já existe no MinIO: {object_name}")
+            return True
+        except S3Error as e:
+            if e.code == "NoSuchKey":
+                return False
+            raise
 
 
 def setup_minio_logger() -> logging.Logger:
