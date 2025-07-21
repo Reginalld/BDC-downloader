@@ -1,14 +1,18 @@
 # brazil_data_cube/logger.py
 
-import logging
 import csv
-from datetime import datetime
+import logging
 import os
-from ..config import LOG_CSV_PATH, TILES_PARANA
-import pandas as pd 
+from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
+import pandas as pd
+
+from ..config import LOG_CSV_PATH
+
+YEAR_MONTH_VARIABLE = "%Y-%m"
+DATE_VARIABLE = "%Y-%m-%d"
 
 
 class ResultManager:
@@ -26,7 +30,7 @@ class ResultManager:
             start_date (str): Data de início da execução (formato YYYY-MM-DD).
             base_log_dir (str): Caminho base onde salvar os logs.
         """
-        year_month = datetime.strptime(start_date, "%Y-%m-%d").strftime("%Y-%m")
+        year_month = datetime.strptime(start_date, DATE_VARIABLE).strftime(YEAR_MONTH_VARIABLE)
         log_dir = Path(base_log_dir) / satellite / year_month
         log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -76,15 +80,13 @@ class ResultManager:
 
         df = self.add_sumarry(df, executed_at, avarage, total_estimate)
 
-        year_month = datetime.strptime(start_date, "%Y-%m-%d").strftime("%Y-%m")
+        year_month = datetime.strptime(start_date, DATE_VARIABLE).strftime(YEAR_MONTH_VARIABLE)
         base_log_dir= 'log'
         log_dir = Path(base_log_dir) / satellite / year_month
         log_dir.mkdir(parents=True, exist_ok=True)
 
         csv_path = log_dir / f"tempo_downloads_{time_stamp_str}.csv"
         df.to_csv(csv_path, index=False)
-
-        self.print_sumary(avarage, total_estimate, csv_path)
 
 
     def create_dataframe(self, results_time_estimated, executed_at):
@@ -104,15 +106,9 @@ class ResultManager:
         ])
         return pd.concat([df, summary_df], ignore_index=True)
 
-    def print_sumary(self, avarage, total_estimate, csv_path):
-        print(f"Média por quadrante: {avarage:.2f} minutos")
-        print(f"Estimativa total ({len(TILES_PARANA)} quadrantes): {total_estimate:.2f} minutos")
-        print(f"CSV salvo em: {csv_path}")
-
-
     @staticmethod
     def setup_logger(satellite: str, data: str, exec_id: str, base_log_dir: str = "log") -> logging.Logger:
-        year_month = datetime.strptime(data, "%Y-%m-%d").strftime("%Y-%m")
+        year_month = datetime.strptime(data, DATE_VARIABLE).strftime(YEAR_MONTH_VARIABLE)
         log_dir = Path(base_log_dir) / satellite / year_month
         log_dir.mkdir(parents=True, exist_ok=True)
 

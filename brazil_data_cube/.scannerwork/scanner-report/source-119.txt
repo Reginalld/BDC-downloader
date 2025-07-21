@@ -1,0 +1,43 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: stac-downloader-
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: create-output-dirs
+          image: busybox
+          command:
+            - sh
+            - -c
+            - "mkdir -p /data/imagens /data/logs /data/csv"
+          volumeMounts:
+            - name: data-volume
+              mountPath: /data
+      containers:
+        - name: stac-downloader
+          image: regiinaldo/stac-downloader:download
+          imagePullPolicy: Always
+          args:
+            - "S2_L2A-1"
+            - "--tile-id"
+            - "parana"
+            - "2025-01-01"
+            - "2025-03-01"
+          env:
+            - name: OUTPUT_DIR
+              value: /data
+          volumeMounts:
+            - name: data-volume
+              mountPath: /data
+          resources:
+            limits:
+              memory: "16Gi"
+            requests:
+              memory: "10Gi"
+      volumes:
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: bdc-pvc
+      restartPolicy: Never

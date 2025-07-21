@@ -1,12 +1,11 @@
 # brazil_data_cube/bounding_box_handler.py
 
-import math
 import logging
+import math
 import os
-from .bounding_box_calculator import BoundingBoxCalculator
-
 from typing import List, Optional, Tuple
 
+from .bounding_box_calculator import BoundingBoxCalculator
 
 
 class BoundingBoxHandler:

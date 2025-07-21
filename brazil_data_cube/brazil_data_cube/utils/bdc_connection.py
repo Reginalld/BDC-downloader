@@ -1,7 +1,8 @@
 # brazil_data_cube/bdc_connection.py
 
-import pystac_client
 import logging
+
+import pystac_client
 
 
 class BdcConnection:

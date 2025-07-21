@@ -1,12 +1,13 @@
 # brazil_data_cube/processors/mosaic_generator.py
 
+import logging
+import os
+import subprocess
+import time
+from typing import List, Optional
+
 import rasterio
 from rasterio.merge import merge
-import subprocess
-import os
-import time
-import logging
-from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 

@@ -1,9 +1,11 @@
 # brazil_data_cube/downloader/geometry_utils.py
 
-import geopandas as gpd
-from shapely.geometry import shape
 import logging
 from typing import Any
+
+import geopandas as gpd
+from shapely.geometry import shape
+
 
 class GeometryUtils:
     def __init__(self, logger: logging.Logger, tile_grid_path: str):

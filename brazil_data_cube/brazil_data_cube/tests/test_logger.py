@@ -1,6 +1,8 @@
 # tests/test_logger.py
 import os
+
 from brazil_data_cube.utils.logger import ResultManager
+
 
 def test_log_error_csv(mocker):
     mock_open = mocker.mock_open()

@@ -1,20 +1,22 @@
 # brazil_data_cube/downloader/image_downloader.py
 
-import os
-import requests
-from tqdm import tqdm
-import time
-import logging
 import json
+import logging
+import os
+import time
 from datetime import datetime
 from typing import Optional
-from brazil_data_cube.utils.bdc_connection import BdcConnection
-from brazil_data_cube.downloader.fetcher import SatelliteImageFetcher
-from brazil_data_cube.utils.bounding_box_handler import BoundingBoxHandler
-from brazil_data_cube.processors.tile_processor import TileProcessor
+
+import requests
+from brazil_data_cube.config import (REDUCTION_FACTOR, SHAPEFILE_PATH_LANDSAT,
+                                     TILES_PATH_LANDSAT, TILES_PATH_SENTINEL)
 from brazil_data_cube.downloader.download_bands import DownloadBands
+from brazil_data_cube.downloader.fetcher import SatelliteImageFetcher
 from brazil_data_cube.minio.MinioUploader import MinioUploader
-from brazil_data_cube.config import REDUCTION_FACTOR, SHAPEFILE_PATH_LANDSAT , TILES_PATH_LANDSAT, TILES_PATH_SENTINEL
+from brazil_data_cube.processors.tile_processor import TileProcessor
+from brazil_data_cube.utils.bdc_connection import BdcConnection
+from brazil_data_cube.utils.bounding_box_handler import BoundingBoxHandler
+from tqdm import tqdm
 
 with open(TILES_PATH_LANDSAT, "r", encoding="utf-8") as f:
     LANDSAT_TILES_POR_UF = json.load(f)
@@ -71,7 +73,7 @@ class ImageDownloader:
                 self.logger.info(f"Download concluído: {filepath}")
                 return filepath
 
-            except (requests.RequestException, OSError) as e:
+            except (requests.RequestException) as e:
                 attempt += 1
                 self.logger.warning(f"Tentativa {attempt}/{max_retries} falhou: {e}")
                 if attempt < max_retries:
@@ -137,7 +139,6 @@ class ImageDownloader:
                 tiles_por_uf = LANDSAT_TILES_POR_UF
 
             elif "s2" in satellite.lower() or "sentinel" in satellite.lower(): # Ex: "S2_L2A-1" ou "sentinel-2"
-                tile_grid_path = tile_grid_path
                 tiles_por_uf = SENTINEL_TILES_POR_UF
 
             if tile_id and tile_id.upper() in tiles_por_uf:
@@ -194,22 +195,8 @@ class ImageDownloader:
             # Faz o download das bandas RGB
             downloaded_files = DownloadBands(self.logger).download_bands(image_assets, self, prefix, satellite, uploader, tile_id or 'ponto')
             
-            # Define o nome do arquivo final
-            output_name = (
-                f"{radius_final:.2f}KM_{satellite}_{tile_id}_{start_date}_{end_date}_RGB.tif"
-                if tile_id else
-                f"{radius_final:.2f}KM_{satellite}_{lat_final:.3f}_{lon_final:.3f}_{start_date}_{end_date}_RGB.tif"
-            )
+            #Prefixo no bucket pode conter data ou nome da tile
+            for path in downloaded_files.values():
+                uploader.upload_file(path, object_name=os.path.join(satellite, tile_id or 'ponto', os.path.basename(path)))
 
-            # Caminho completo do arquivo final
-            output_path = os.path.join(self.output_dir, output_name)
-
-            # Aqui poderia vir o merge das bandas RGB se necessário
-            # ImageProcessor(satelite).merge_rgb_tif(..., output_path)
-            
-            data_range_folder = f"{start_date}_{end_date}"
-
-            # Prefixo no bucket pode conter data ou nome da tile
-            # for path in downloaded_files.values():
-            #     uploader.upload_file(path, object_name=os.path.join(satellite, tile_id or 'ponto', os.path.basename(path)))
 

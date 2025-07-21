@@ -1,9 +1,11 @@
 # brazil_data_cube/downloader/fetcher.py
 
 import logging
-from ..utils.logger import ResultManager
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
+
 from ..utils.geometry_utils import GeometryUtils
+from ..utils.logger import ResultManager
+
 
 class SatelliteImageFetcher:
     def __init__(self, logger: logging.Logger, connection: any):
@@ -92,18 +94,19 @@ class SatelliteImageFetcher:
 
     def _build_filter(self, satellite, max_cloud_cover):
         """Cria o filtro de busca com base no satélite(não funcional na API do Brazil Data Cube)."""
+        cloud_property = "eo:cloud_cover"
         if satellite == 'S2_L2A-1':
             # Aplica filtro com faixa de cobertura de nuvem entre 10 e o valor máximo permitido
             return {
                 "op": "and",
                 "args": [
-                    {"op": "lte", "args": [{"property": "eo:cloud_cover"}, max_cloud_cover]},
-                    {"op": "gte", "args": [{"property": "eo:cloud_cover"}, 10]},
+                    {"op": "lte", "args": [{"property": cloud_property}, max_cloud_cover]},
+                    {"op": "gte", "args": [{"property": cloud_property}, 10]},
                 ],
             }
         elif satellite == 'S2-16D-2':
             # Apenas filtra imagens com cobertura de nuvem menor que o máximo permitido
-            return {"op": "lte", "args": [{"property": "eo:cloud_cover"}, max_cloud_cover]}
+            return {"op": "lte", "args": [{"property": cloud_property}, max_cloud_cover]}
         elif satellite == 'landsat-2':
             return {}
         else:

@@ -1,7 +1,7 @@
 # brazil_data_cube/bounding_box_calculator.py
 
-import math
 import logging
+import math
 
 logger = logging.getLogger(__name__)
 

@@ -1,16 +1,18 @@
 # brazil_data_cube/tile_processor.py
 
-import time
 import logging
+import os
+import time
+from typing import Any, Dict, List
+
 import geopandas as gpd
-from ..config import TILES_PARANA, SAT_SUPPORTED, LANDSAT_TILES_PARANA
+from brazil_data_cube.downloader.download_bands import DownloadBands
+from brazil_data_cube.minio.MinioUploader import MinioUploader
+
+from ..config import SAT_SUPPORTED
 from ..utils.bounding_box_handler import BoundingBoxHandler
 from ..utils.logger import ResultManager
-from brazil_data_cube.processors.image_processor import ImageProcessor
-from brazil_data_cube.downloader.download_bands import DownloadBands
-import os
-from brazil_data_cube.minio.MinioUploader import MinioUploader
-from typing import List, Dict, Any
+
 
 class TileProcessor:
 
@@ -24,7 +26,6 @@ class TileProcessor:
         self.max_cloud_cover = max_cloud_cover
         self.bbox_handler = BoundingBoxHandler(self.logger)
         self.result_manager = ResultManager(logger)
-        # self.image_processor = ImageProcessor(satellite="")  # Será redefinido na execução
         self.minio_uploader = minio_uploader
 
     def process_tile_list(self, tiles_list: any, satellite: str, start_date: str, end_date: str) -> None:
@@ -46,10 +47,7 @@ class TileProcessor:
         tile_mosaic_files = []
         results_time_estimated = []
 
-        if satellite == "S2_L2A-1":
-            tile_list = tiles_list
-        else:
-            tile_list = tiles_list
+        tile_list = tiles_list
 
         # Itera sobre cada tile definido para o estado do Paraná
         for tile in tile_list:
@@ -97,10 +95,8 @@ class TileProcessor:
             # Pode ser ativado no futuro quando a montagem do mosaico estiver implementada
             # self.image_processor.merge_bandas_tif(...)
 
-            data_range_folder = f"{start_date}_{end_date}"
-
-            # for path in downloaded_files.values():
-            #     self.minio_uploader.upload_file(path, object_name=os.path.join(satellite, tile or 'ponto', os.path.basename(path)))
+            for path in downloaded_files.values():
+                self.minio_uploader.upload_file(path, object_name=os.path.join(satellite, tile or 'ponto', os.path.basename(path)))
 
             tile_mosaic_files.append(tile_mosaic_output)
             duration = time.perf_counter() - start

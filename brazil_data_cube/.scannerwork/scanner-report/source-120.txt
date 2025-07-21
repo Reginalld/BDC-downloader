@@ -1,0 +1,11 @@
+# bdc-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bdc-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce  # ou ReadWriteMany se estiver seguro
+  resources:
+    requests:
+      storage: 1Gi
