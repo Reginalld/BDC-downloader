@@ -27,7 +27,7 @@ class TileProcessor:
         # self.image_processor = ImageProcessor(satellite="")  # Será redefinido na execução
         self.minio_uploader = minio_uploader
 
-    def process_parana_tiles(self, satellite: str, start_date: str, end_date: str) -> None:
+    def process_tile_list(self, tiles_list: any, satellite: str, start_date: str, end_date: str) -> None:
         """
         Processa todos os tiles do Paraná, baixa e monta o mosaico final.
         
@@ -47,9 +47,9 @@ class TileProcessor:
         results_time_estimated = []
 
         if satellite == "S2_L2A-1":
-            tile_list = TILES_PARANA
+            tile_list = tiles_list
         else:
-            tile_list = LANDSAT_TILES_PARANA
+            tile_list = tiles_list
 
         # Itera sobre cada tile definido para o estado do Paraná
         for tile in tile_list:
@@ -99,8 +99,8 @@ class TileProcessor:
 
             data_range_folder = f"{start_date}_{end_date}"
 
-            for path in downloaded_files.values():
-                self.minio_uploader.upload_file(path, object_name=os.path.join(satellite, tile or 'ponto', os.path.basename(path)))
+            # for path in downloaded_files.values():
+            #     self.minio_uploader.upload_file(path, object_name=os.path.join(satellite, tile or 'ponto', os.path.basename(path)))
 
             tile_mosaic_files.append(tile_mosaic_output)
             duration = time.perf_counter() - start

@@ -5,6 +5,7 @@ import requests
 from tqdm import tqdm
 import time
 import logging
+import json
 from datetime import datetime
 from typing import Optional
 from brazil_data_cube.utils.bdc_connection import BdcConnection
@@ -13,8 +14,13 @@ from brazil_data_cube.utils.bounding_box_handler import BoundingBoxHandler
 from brazil_data_cube.processors.tile_processor import TileProcessor
 from brazil_data_cube.downloader.download_bands import DownloadBands
 from brazil_data_cube.minio.MinioUploader import MinioUploader
-from brazil_data_cube.config import REDUCTION_FACTOR, SHAPEFILE_PATH_LANDSAT
+from brazil_data_cube.config import REDUCTION_FACTOR, SHAPEFILE_PATH_LANDSAT , TILES_PATH_LANDSAT, TILES_PATH_SENTINEL
 
+with open(TILES_PATH_LANDSAT, "r", encoding="utf-8") as f:
+    LANDSAT_TILES_POR_UF = json.load(f)
+
+with open(TILES_PATH_SENTINEL, "r", encoding="utf-8") as f:
+    SENTINEL_TILES_POR_UF = json.load(f)
 
 class ImageDownloader:
     def __init__(self, logger: logging.Logger, output_dir: str):
@@ -128,21 +134,32 @@ class ImageDownloader:
 
             if "landsat" in satellite.lower():
                 tile_grid_path = SHAPEFILE_PATH_LANDSAT
+                tiles_por_uf = LANDSAT_TILES_POR_UF
+
             elif "s2" in satellite.lower() or "sentinel" in satellite.lower(): # Ex: "S2_L2A-1" ou "sentinel-2"
                 tile_grid_path = tile_grid_path
+                tiles_por_uf = SENTINEL_TILES_POR_UF
 
-            # Se for o estado do Paraná, delega ao TileProcessor
-            if tile_id in ["Paraná", "parana"]:
-                self.logger.info("Iniciando tiles do Paraná")
+            if tile_id and tile_id.upper() in tiles_por_uf:
+                uf = tile_id.upper()
+                self.logger.info(f"Iniciando tiles do estado: {uf}")
+
+                tile_list = tiles_por_uf.get(uf)
+
+                if not tile_list:
+                    self.logger.warning(f"Nenhum tile encontrado para {uf} com {satellite}")
+                    raise ValueError(f"Nenhum tile encontrado para {uf} com {satellite}")
+
                 TileProcessor(
                     self.logger,
                     fetcher,
-                    self,  # passa o downloader atual
+                    self,  # downloader atual
                     self.output_dir,
                     tile_grid_path,
                     max_cloud_cover,
                     uploader
-                ).process_parana_tiles(satellite, start_date, end_date)
+                ).process_tile_list(tile_list, satellite, start_date, end_date)
+
                 return
 
             self.logger.info(tile_id)
@@ -193,6 +210,6 @@ class ImageDownloader:
             data_range_folder = f"{start_date}_{end_date}"
 
             # Prefixo no bucket pode conter data ou nome da tile
-            for path in downloaded_files.values():
-                uploader.upload_file(path, object_name=os.path.join(satellite, tile_id or 'ponto', os.path.basename(path)))
+            # for path in downloaded_files.values():
+            #     uploader.upload_file(path, object_name=os.path.join(satellite, tile_id or 'ponto', os.path.basename(path)))
 

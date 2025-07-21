@@ -5,6 +5,7 @@ from pathlib import Path
 from datetime import datetime
 from brazil_data_cube.utils.task_manager import start_download_task, get_task_status
 import uuid
+import asyncio
 
 
 app = FastAPI(
@@ -14,9 +15,9 @@ app = FastAPI(
 )
 
 @app.post("/download")
-def download(request: DownloadRequest):
+async def download(request: DownloadRequest):
     exec_id = str(uuid.uuid4())[:8]
-    task_id = start_download_task(start_download, request, exec_id=exec_id)
+    task_id = await asyncio.to_thread(start_download_task, start_download, request, exec_id=exec_id)
     return {"mensagem": "Download agendado", "task_id": task_id}
 
 @app.get("/status")

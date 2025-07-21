@@ -1,8 +1,14 @@
 from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional
-from brazil_data_cube.config import SHAPEFILE_PATH, MAX_CLOUD_COVER_DEFAULT, SAT_SUPPORTED, TILES_PARANA, LANDSAT_TILES_PARANA
+from brazil_data_cube.config import SHAPEFILE_PATH, MAX_CLOUD_COVER_DEFAULT, SAT_SUPPORTED, TILES_PARANA, LANDSAT_TILES_PARANA, TILES_PATH_LANDSAT, TILES_PATH_SENTINEL
 from datetime import datetime
+import json
 
+with open(TILES_PATH_SENTINEL, "r", encoding="utf-8") as f:
+    TILES_SENTINEL_POR_UF = json.load(f)
+
+with open(TILES_PATH_LANDSAT, "r", encoding="utf-8") as f:
+    TILES_LANDSAT_POR_UF = json.load(f)
 
 class DownloadRequest(BaseModel):
 
@@ -11,9 +17,9 @@ class DownloadRequest(BaseModel):
     lon: Optional[float] = Field(None, ge=-180.0, le=180.0)
     tile_id: Optional[str] = Field(
         None,
-        min_length=5,
-        max_length=6,
-        description="Tile Sentinel-2 ou 'parana'"
+        min_length=2,
+        max_length=2,
+        description="Sigla do estado brasileiro (ex: 'PR', 'SP')"
     )
     radius_km: Optional[float] = Field(10.0, ge=0.1, le=100.0)
     start_date: str
@@ -34,18 +40,13 @@ class DownloadRequest(BaseModel):
         if v is None:
             return v
 
-        v = v.upper()
+        v_up = v.strip().upper()
 
-        if v == "PARANA":
-            return "parana"
+        valid_ufs = set(TILES_SENTINEL_POR_UF.keys()) | set(TILES_LANDSAT_POR_UF.keys())
+        if v_up not in valid_ufs:
+            raise ValueError(f"Sigla de estado '{v_up}' inválida ou sem tiles disponíveis. Use uma destas: {sorted(valid_ufs)}")
 
-        # Verifica se está na lista de tiles válidos
-        if v.upper() not in TILES_PARANA and v.upper() not in LANDSAT_TILES_PARANA:
-            raise ValueError(
-                f"Tile '{v}' inválido. Use 'parana' ou um dos tiles válidos: {TILES_PARANA} ou {LANDSAT_TILES_PARANA}"
-            )
-        
-        return v
+        return v_up
 
     @field_validator("start_date", "end_date")
     @classmethod

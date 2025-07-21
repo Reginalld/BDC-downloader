@@ -69,8 +69,8 @@ class DownloadBands:
                 object_name = os.path.join(satellite, tile_id or 'ponto', filename).replace("\\", "/")
 
                 # Verifica se já existe no MinIO
-                if minio_uploader.object_exists(object_name):
-                    continue
+                # if minio_uploader.object_exists(object_name):
+                #     continue
 
                 try:
                     filepath = downloader.download(image_assets[band], filename)
