@@ -5,6 +5,7 @@ import math
 
 logger = logging.getLogger(__name__)
 
+
 class BoundingBoxCalculator:
     @staticmethod
     def calculate(lat, lon, raio_km):

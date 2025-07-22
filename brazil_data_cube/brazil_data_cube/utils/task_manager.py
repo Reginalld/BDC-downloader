@@ -1,7 +1,6 @@
 # brazil_data_cube/task_manager.py
 
 import threading
-import uuid
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict
 
@@ -9,6 +8,7 @@ executor = ThreadPoolExecutor(max_workers=1)
 
 task_status: Dict[str, Dict] = {}
 task_status_lock = threading.Lock()
+
 
 def start_download_task(start_download, request, exec_id: str):
 
@@ -40,6 +40,7 @@ def start_download_task(start_download, request, exec_id: str):
     executor.submit(task)
 
     return task_id
+
 
 def get_task_status(task_id: str) -> Dict:
     with task_status_lock:

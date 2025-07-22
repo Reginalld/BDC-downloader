@@ -1,1 +1,1 @@
-+ 2pyXVhr-brazil_data_cube/downloader/download_bands.py
++ 2pyX]hr-brazil_data_cube/downloader/download_bands.py

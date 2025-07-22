@@ -3,11 +3,13 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from brazil_data_cube.api.downloader import execution_state, start_download
+import aiofiles
+from fastapi import FastAPI, HTTPException
+
+from brazil_data_cube.api.downloader import start_download
 from brazil_data_cube.api.models import DownloadRequest
 from brazil_data_cube.utils.task_manager import (get_task_status,
                                                  start_download_task)
-from fastapi import FastAPI, HTTPException
 
 app = FastAPI(
     title="STAC Downloader API",
@@ -15,22 +17,20 @@ app = FastAPI(
     version="1.0"
 )
 
+
 @app.post("/download")
 async def download(request: DownloadRequest):
     exec_id = str(uuid.uuid4())[:8]
-    task_id = await asyncio.to_thread(start_download_task, start_download, request, exec_id=exec_id)
+    task_id = await asyncio.to_thread(
+            start_download_task, start_download,
+            request, exec_id=exec_id
+            )
     return {"mensagem": "Download agendado", "task_id": task_id}
 
-@app.get("/status")
-async def status():
-    return {"status": execution_state.get_status()}
 
 @app.get("/status/{task_id}")
-def status(task_id: str):
+async def status(task_id: str):
     return get_task_status(task_id)
-
-
-from fastapi import HTTPException
 
 
 @app.get("/logs/{task_id}")
@@ -44,21 +44,36 @@ async def logs(task_id: str):
         log_path = Path("log") / "upload_minio.txt"
     else:
         try:
-            satelite = task["satelite"]
+            satellite = task["satellite"]
             start_date = task["start_date"]
-            ano_mes = datetime.strptime(start_date, "%Y-%m-%d").strftime("%Y-%m")
-            log_path = Path("log") / satelite / ano_mes / f"{task_id}.log"
+            year_month = datetime.strptime(start_date, "%Y-%m-%d") \
+                .strftime("%Y-%m")
+      
+            log_path = Path("log") / satellite / year_month / f"{task_id}.log"
         except KeyError:
-            raise HTTPException(status_code=400, detail="Metadados incompletos para este task_id.")
+            raise HTTPException(
+                status_code=400,
+                detail="Metadados incompletos para este task_id."
+                )
         except ValueError:
-            raise HTTPException(status_code=400, detail="Data em formato inválido nos metadados.")
+            raise HTTPException(
+                status_code=400,
+                detail="Data em formato inválido nos metadados."
+                )
 
     if not log_path.exists():
-        raise HTTPException(status_code=404, detail=f"Arquivo de log não encontrado: {log_path}")
-    
+        raise HTTPException(
+            status_code=404,
+            detail=f"Arquivo de log não encontrado: {log_path}"
+            )
+
     try:
-        conteudo = log_path.read_text(encoding="utf-8")
+        async with aiofiles.open(log_path, encoding="utf-8") as f:
+            conteudo = await f.read()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao ler o log: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao ler o log: {str(e)}"
+            )
 
     return {"log": conteudo}

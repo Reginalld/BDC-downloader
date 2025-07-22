@@ -12,4 +12,7 @@ typer==0.15.3
 click==8.0.4
 minio==7.2.15
 uvicorn[standard]
+gunicorn==21.2.0
+aiofiles==24.1.0
+
 

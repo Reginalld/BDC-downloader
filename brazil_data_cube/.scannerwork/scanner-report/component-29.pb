@@ -1,1 +1,1 @@
- 2pyXfhr/brazil_data_cube/processors/mosaic_generator.py
+ 2pyXhr/brazil_data_cube/processors/mosaic_generator.py

@@ -1,1 +1,1 @@
- 2pyX)hrstac_downloader.py
+ 2pyX<hrstac_downloader.py

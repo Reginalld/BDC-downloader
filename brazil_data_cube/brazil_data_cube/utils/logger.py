@@ -2,14 +2,12 @@
 
 import csv
 import logging
-import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Dict, List
 
 import pandas as pd
 
-from ..config import LOG_CSV_PATH
 
 YEAR_MONTH_VARIABLE = "%Y-%m"
 DATE_VARIABLE = "%Y-%m-%d"
@@ -19,18 +17,20 @@ class ResultManager:
     def __init__(self, logger: logging.Logger):
         self.logger = logger
 
-    def log_error_csv(self,tile: str, satellite: str, error_msg: str, start_date: str, base_log_dir: str = "log") -> None:
+    def log_error_csv(
+        self,
+        tile: str,
+        satellite: str,
+        error_msg: str,
+        start_date: str,
+        base_log_dir: str = "log"
+    ) -> None:
         """
         Registra erros no CSV de falhas, organizados por satélite e ano/mês.
-
-        Args:
-            tile (str): Tile ou região afetada.
-            satelite (str): Nome do satélite.
-            erro_msg (str): Mensagem de erro detalhada.
-            start_date (str): Data de início da execução (formato YYYY-MM-DD).
-            base_log_dir (str): Caminho base onde salvar os logs.
         """
-        year_month = datetime.strptime(start_date, DATE_VARIABLE).strftime(YEAR_MONTH_VARIABLE)
+        year_month = datetime.strptime(start_date, DATE_VARIABLE).strftime(
+            YEAR_MONTH_VARIABLE
+        )
         log_dir = Path(base_log_dir) / satellite / year_month
         log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -38,15 +38,21 @@ class ResultManager:
         file_exists = csv_path.is_file()
 
         try:
-            with open(csv_path, mode="a", newline="", encoding='utf-8') as csvfile:
+            with open(
+                    csv_path, mode="a", newline="", encoding="utf-8"
+                    ) as csvfile:
                 fieldnames = ["Data", "Tile_id", "Satelite", "Erro"]
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames, dialect='excel')
+                writer = csv.DictWriter(
+                    csvfile,
+                    fieldnames=fieldnames,
+                    dialect="excel"
+                )
 
                 if not file_exists:
                     writer.writeheader()
 
                 writer.writerow({
-                    "Data": datetime.now().isoformat(timespec='seconds'),
+                    "Data": datetime.now().isoformat(timespec="seconds"),
                     "Tile_id": tile,
                     "Satelite": satellite,
                     "Erro": error_msg
@@ -54,40 +60,39 @@ class ResultManager:
             self.logger.info(f"Erro registrado no CSV: {tile} - {satellite}")
         except Exception as e:
             self.logger.critical(f"Falha ao gravar no CSV de erros: {e}")
-            
-    def manage_results(self, tile_mosaic_files: List[str], results_time_estimated: List[Dict[str, float]], satellite: str, start_date: str) -> None:
+
+    def manage_results(
+        self,
+        tile_mosaic_files: List[str],
+        results_time_estimated: List[Dict[str, float]],
+        satellite: str,
+        start_date: str
+    ) -> None:
         """
-        Gera relatórios de tempo 
-        
-        Args:
-            tile_mosaic_files (List[str]): Lista de caminhos das imagens processadas
-            results_time_estimated (List[Dict]): Lista com duração de downloads
-            output_dir (str): Pasta onde salvar resultados
-            satelite (str): Nome do satélite usado
-            start_date (str): Data inicial do download
-            end_date (str): Data final do download
+        Gera relatórios de tempo de download e estimativas.
         """
         if not tile_mosaic_files:
             self.logger.error("Nenhum tile foi baixado.")
             return
 
-        executed_at = datetime.now().strftime('%Y-%m-%d %H_%M_%S')
+        executed_at = datetime.now().strftime("%Y-%m-%d %H_%M_%S")
         time_stamp_str = datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
 
         df = self.create_dataframe(results_time_estimated, executed_at)
         avarage = df["Duracao_minutos"].mean().round(2)
-        total_estimate = (avarage * len(tile_mosaic_files)).__round__(2)
+        total_estimate = round(avarage * len(tile_mosaic_files), 2)
 
         df = self.add_sumarry(df, executed_at, avarage, total_estimate)
 
-        year_month = datetime.strptime(start_date, DATE_VARIABLE).strftime(YEAR_MONTH_VARIABLE)
-        base_log_dir= 'log'
+        year_month = datetime.strptime(start_date, DATE_VARIABLE).strftime(
+            YEAR_MONTH_VARIABLE
+        )
+        base_log_dir = "log"
         log_dir = Path(base_log_dir) / satellite / year_month
         log_dir.mkdir(parents=True, exist_ok=True)
 
         csv_path = log_dir / f"tempo_downloads_{time_stamp_str}.csv"
         df.to_csv(csv_path, index=False)
-
 
     def create_dataframe(self, results_time_estimated, executed_at):
         return pd.DataFrame([
@@ -101,14 +106,29 @@ class ResultManager:
 
     def add_sumarry(self, df, executed_at, avarage, total_estimate):
         summary_df = pd.DataFrame([
-            {"Tile_id": "MÉDIA", "Duracao_minutos": avarage, "executed_at": executed_at},
-            {"Tile_id": "total_estimate", "Duracao_minutos": total_estimate, "executed_at": executed_at}
+            {
+                "Tile_id": "MÉDIA",
+                "Duracao_minutos": avarage,
+                "executed_at": executed_at
+            },
+            {
+                "Tile_id": "total_estimate",
+                "Duracao_minutos": total_estimate,
+                "executed_at": executed_at
+            }
         ])
         return pd.concat([df, summary_df], ignore_index=True)
 
     @staticmethod
-    def setup_logger(satellite: str, data: str, exec_id: str, base_log_dir: str = "log") -> logging.Logger:
-        year_month = datetime.strptime(data, DATE_VARIABLE).strftime(YEAR_MONTH_VARIABLE)
+    def setup_logger(
+        satellite: str,
+        data: str,
+        exec_id: str,
+        base_log_dir: str = "log"
+    ) -> logging.Logger:
+        year_month = datetime.strptime(data, DATE_VARIABLE).strftime(
+            YEAR_MONTH_VARIABLE
+        )
         log_dir = Path(base_log_dir) / satellite / year_month
         log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -118,7 +138,9 @@ class ResultManager:
         logger.setLevel(logging.INFO)
 
         if not logger.handlers:
-            formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s")
+            formatter = logging.Formatter(
+                "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+            )
             file_handler = logging.FileHandler(log_file)
             file_handler.setFormatter(formatter)
             logger.addHandler(file_handler)

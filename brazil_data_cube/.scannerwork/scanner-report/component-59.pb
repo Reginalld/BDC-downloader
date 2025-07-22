@@ -1,1 +1,1 @@
-; 2pyXshrbrazil_data_cube/api/models.py
+; 2pyX¤hrbrazil_data_cube/api/models.py

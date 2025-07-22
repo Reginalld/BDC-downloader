@@ -1,7 +1,5 @@
 # brazil_data_cube/config.py
 
-import os
-from datetime import datetime
 from pathlib import Path
 
 # Diretório raiz do projeto
@@ -15,15 +13,15 @@ SHAPEFILE_PATH_LANDSAT = DATA_DIR / "shapefile_ids" / "WRS2_descending.shp"
 LOG_DIR = DATA_DIR / "log"
 CSV_DIR = DATA_DIR / "temp"
 LOG_CSV_PATH = DATA_DIR / "log/falhas_download.csv"
-LOG_FILE = f"log/brazil_data_cube_log.txt"
+LOG_FILE = "log/brazil_data_cube_log.txt"
 
 TILES_PATH_SENTINEL = DATA_DIR / "shapefile_ids" / "sentinel_UFids.json"
 TILES_PATH_LANDSAT = DATA_DIR / "shapefile_ids" / "landsat_UFids.json"
 
-#sqa_88e18fb4ecf7ca0dd80c53cb6eac6b42d2ba13e5 - sonarqube token
+# sqa_c8322b9bfa56cc3a7de40b2b59c55ba531b4e740 - sonarqube token
 
 # Satélites suportados
-SAT_SUPPORTED = ['S2_L2A-1','landsat-2']
+SAT_SUPPORTED = ['S2_L2A-1', 'landsat-2']
 
 # Configurações padrão
 DEFAULT_RADIUS_KM = 10.0

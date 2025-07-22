@@ -1,1 +1,1 @@
-) 2pyX hrbrazil_data_cube/config.py
+) 2pyXhrbrazil_data_cube/config.py

@@ -1,9 +1,10 @@
+from pydantic import ValidationError
+
 from brazil_data_cube.api.models import DownloadRequest
 from brazil_data_cube.api.state import ExecutionState
 from brazil_data_cube.config import IMAGES_DIR
 from brazil_data_cube.downloader.image_downloader import ImageDownloader
 from brazil_data_cube.utils.logger import ResultManager
-from pydantic import ValidationError
 
 execution_state = ExecutionState()
 

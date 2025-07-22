@@ -1,19 +1,18 @@
 import logging
 import os
-from typing import Optional
-
-from minio.error import S3Error
-from tqdm import tqdm
 
 
 class DownloadBands:
-    def __init__(self,logger: logging.Logger):
+    def __init__(self, logger: logging.Logger):
         self.logger = logger
-    
-    def download_bands(self, image_assets, downloader , prefix, satellite, minio_uploader, tile_id):
-        """
-        Função responsável pela chamada de download de cada banda, evitando repetição onde necessário.
 
+    def download_bands(
+            self, image_assets, downloader,
+            prefix, satellite, minio_uploader, tile_id
+            ):
+        """
+        Função responsável pela chamada de download de cada banda,
+        evitando repetição onde necessário.
         """
         if satellite == "S2_L2A-1":
             bands = {
@@ -68,18 +67,25 @@ class DownloadBands:
         for band, suffix in bands.items():
             if band in image_assets:
                 filename = f"{prefix}_{suffix}.tif"
-                object_name = os.path.join(satellite, tile_id or 'ponto', filename).replace("\\", "/")
+                object_name = os.path.join(
+                    satellite, tile_id or 'ponto', filename
+                    ).replace("\\", "/")
 
                 # Verifica se já existe no MinIO
                 if minio_uploader.object_exists(object_name):
                     continue
 
                 try:
-                    filepath = downloader.download(image_assets[band], filename)
+                    filepath = downloader.download(
+                        image_assets[band], filename
+                        )
+
                     if filepath:
                         download_files[band] = filepath
                     else:
-                        self.logger.warning(f"Download falhou para banda '{band}' ({suffix})")
+                        self.logger.warning(
+                            f"Download falhou para banda '{band}' ({suffix})"
+                            )
                 except Exception as e:
                     self.logger.error(f"Erro ao baixar banda '{band}': {e}")
 
