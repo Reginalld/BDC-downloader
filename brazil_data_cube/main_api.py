@@ -48,7 +48,7 @@ async def logs(task_id: str):
             start_date = task["start_date"]
             year_month = datetime.strptime(start_date, "%Y-%m-%d") \
                 .strftime("%Y-%m")
-      
+
             log_path = Path("log") / satellite / year_month / f"{task_id}.log"
         except KeyError:
             raise HTTPException(

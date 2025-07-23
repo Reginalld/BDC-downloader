@@ -8,7 +8,6 @@ from typing import Dict, List
 
 import pandas as pd
 
-
 YEAR_MONTH_VARIABLE = "%Y-%m"
 DATE_VARIABLE = "%Y-%m-%d"
 
