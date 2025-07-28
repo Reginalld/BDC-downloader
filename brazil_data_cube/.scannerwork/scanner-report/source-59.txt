@@ -85,21 +85,6 @@ class DownloadRequest(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_lat_lon_and_id(self):
-        if self.tile_id and (self.lat or self.lon):
-            raise ValueError(
-                "Informe apenas 'tile_id' ou par de"
-                "coordenadas (lat/lon), não ambos."
-                )
-
-        if (self.lat is not None) != (self.lon is not None):
-            raise ValueError(
-                "Latitude e longitude devem ser fornecidas juntas."
-                )
-
-        return self
-
-    @model_validator(mode="after")
     def validate_location_input(self):
         # Validador que garante que ou temos tile_id ou lat/lon, mas não ambos
         has_tile_id = self.tile_id is not None

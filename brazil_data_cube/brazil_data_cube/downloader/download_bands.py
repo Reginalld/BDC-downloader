@@ -72,7 +72,7 @@ class DownloadBands:
                     ).replace("\\", "/")
 
                 # Verifica se já existe no MinIO
-                if minio_uploader.object_exists(object_name):
+                if minio_uploader.object_exists(object_name, x=0):
                     continue
 
                 try:

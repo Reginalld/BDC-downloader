@@ -18,6 +18,7 @@ from brazil_data_cube.minio.MinioUploader import MinioUploader
 from brazil_data_cube.processors.tile_processor import TileProcessor
 from brazil_data_cube.utils.bdc_connection import BdcConnection
 from brazil_data_cube.utils.bounding_box_handler import BoundingBoxHandler
+from brazil_data_cube.utils.logger import ResultManager
 
 with open(TILES_PATH_LANDSAT, "r", encoding="utf-8") as f:
     LANDSAT_TILES_POR_UF = json.load(f)
@@ -31,6 +32,8 @@ class ImageDownloader:
         self.output_dir = output_dir
         self.logger = logger
         self.create_output()
+        self.remover_log = ResultManager.setup_deletion_logger()
+
 
     def create_output(self) -> None:
         """Cria diretório de saída se ele não existir."""
@@ -158,6 +161,7 @@ class ImageDownloader:
 
             TileProcessor(
                 self.logger,
+                self.remover_log,
                 fetcher,
                 self,
                 self.output_dir,
@@ -213,13 +217,34 @@ class ImageDownloader:
             tile_id or 'ponto'
         )
 
+
         # Prefixo no bucket pode conter data ou nome da tile
         for path in downloaded_files.values():
-            uploader.upload_file(
-                path,
-                object_name=os.path.join(
+
+            object_name=os.path.join(
                     satellite,
                     tile_id or 'ponto',
                     os.path.basename(path)
                 )
+            
+            uploader.upload_file(
+                path,
+                object_name=object_name
             )
+
+            if uploader.object_exists(object_name, x=1):
+                self.remover_log.info(f"Arquivo no diretório {path} será deletado localmente")
+                try:
+                    os.remove(path)
+                    self.remover_log.info(f"Arquivo {path} deletado com sucesso.")
+                except FileNotFoundError:
+                    self.remover_log.warning(f"Arquivo {path} não encontrado para deletar.")
+                except Exception as e:
+                    self.remover_log.error(f"Erro ao deletar o arquivo {path}: {e}")
+
+            
+                
+                
+                
+
+            

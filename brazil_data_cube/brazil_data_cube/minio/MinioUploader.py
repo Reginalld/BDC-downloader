@@ -1,12 +1,10 @@
-import logging
 import os
 import time
-from pathlib import Path
 
 from minio import Minio
 from minio.error import S3Error
 
-from brazil_data_cube.config import LOG_DIR
+from brazil_data_cube.utils.logger import ResultManager
 
 
 class MinioUploader:
@@ -20,7 +18,7 @@ class MinioUploader:
             secure=secure,
         )
         self.bucket_name = bucket_name
-        self.logger = setup_minio_logger()
+        self.logger = ResultManager.setup_minio_logger()
 
     def upload_file(self, local_path: str, object_name: str = None):
         """ Função que executa upload de um arquivo individual """
@@ -107,13 +105,16 @@ class MinioUploader:
             files_uploaded, files_failed
         )
 
-    def object_exists(self, object_name: str) -> bool:
+    def object_exists(self, object_name: str, x: int) -> bool:
         """
         Verifica se um objeto já existe no bucket.
         """
         try:
             self.client.stat_object(self.bucket_name, object_name)
-            self.logger.info("[PULADO] Já existe no MinIO: %s", object_name)
+
+            if x == 0:
+                self.logger.info("Arquivo pulado, pois já existe no MinIO: %s", object_name)
+
             return True
         except S3Error as e:
             if e.code == "NoSuchKey":
@@ -121,27 +122,3 @@ class MinioUploader:
             raise
 
 
-def setup_minio_logger() -> logging.Logger:
-    log_dir = Path(LOG_DIR)
-    log_dir.mkdir(parents=True, exist_ok=True)
-
-    logger = logging.getLogger("minio_upload")
-    logger.setLevel(logging.INFO)
-
-    log_file = log_dir / "upload_minio.txt"
-
-    if not logger.handlers:
-        formatter = logging.Formatter(
-            "%(asctime)s - %(levelname)s - %(message)s"
-        )
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-
-        stream_handler = logging.StreamHandler()
-        stream_handler.setFormatter(formatter)
-        logger.addHandler(stream_handler)
-
-        logger.propagate = False
-
-    return logger

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Dict, List
 
 import pandas as pd
+from brazil_data_cube.config import LOG_DIR
 
 YEAR_MONTH_VARIABLE = "%Y-%m"
 DATE_VARIABLE = "%Y-%m-%d"
@@ -123,7 +124,7 @@ class ResultManager:
         satellite: str,
         data: str,
         exec_id: str,
-        base_log_dir: str = "log"
+        base_log_dir: str = LOG_DIR
     ) -> logging.Logger:
         year_month = datetime.strptime(data, DATE_VARIABLE).strftime(
             YEAR_MONTH_VARIABLE
@@ -152,3 +153,56 @@ class ResultManager:
 
         logger.info(f"Logger iniciado para execução {exec_id}")
         return logger
+
+    @staticmethod
+    def setup_minio_logger() -> logging.Logger:
+        log_dir = Path(LOG_DIR)
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        logger = logging.getLogger("minio_upload")
+        logger.setLevel(logging.INFO)
+
+        log_file = log_dir / "upload_minio.txt"
+
+        if not logger.handlers:
+            formatter = logging.Formatter(
+                "%(asctime)s - %(levelname)s - %(message)s"
+            )
+            file_handler = logging.FileHandler(log_file)
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
+
+            stream_handler = logging.StreamHandler()
+            stream_handler.setFormatter(formatter)
+            logger.addHandler(stream_handler)
+
+            logger.propagate = False
+
+        return logger
+
+    @staticmethod
+    def setup_deletion_logger() -> logging.Logger:
+        log_dir = Path(LOG_DIR)
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        logger = logging.getLogger("deletion_files")
+        logger.setLevel(logging.INFO)
+
+        log_file = log_dir / "deleted_files.txt"
+
+        if not logger.handlers:
+            formatter = logging.Formatter(
+                "%(asctime)s - %(levelname)s - %(message)s"
+            )
+            file_handler = logging.FileHandler(log_file)
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
+
+            stream_handler = logging.StreamHandler()
+            stream_handler.setFormatter(formatter)
+            logger.addHandler(stream_handler)
+
+            logger.propagate = False
+
+        return logger
+

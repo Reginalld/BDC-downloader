@@ -15,6 +15,7 @@ class TileProcessor:
     def __init__(
         self,
         logger: logging.Logger,
+        remover_loger: logging.Logger,
         fetcher: any,
         downloader: any,
         output_dir: str,
@@ -24,6 +25,7 @@ class TileProcessor:
     ):
         self.fetcher = fetcher
         self.logger = logger
+        self.remover_loger = remover_loger
         self.downloader = downloader
         self.output_dir = output_dir
         self.tile_grid_path = tile_grid_path
@@ -112,14 +114,33 @@ class TileProcessor:
             )
 
             for path in downloaded_files.values():
-                self.minio_uploader.upload_file(
-                    path,
-                    object_name=os.path.join(
+                object_name=os.path.join(
                         satellite,
                         tile or 'ponto',
                         os.path.basename(path)
                     )
+                
+                self.minio_uploader.upload_file(
+                    path,
+                    object_name=object_name
                 )
+
+                if self.minio_uploader.object_exists(object_name, x=1) is True:
+                    self.remover_loger.info(
+                        f"Arquivo no diretório {path} será deletado localmente"
+                        )
+                    try:
+                        os.remove(path)
+                        self.remover_loger.info(
+                            f"Arquivo {path} deletado com sucesso."
+                            )
+                    except FileNotFoundError:
+                        self.remover_loger.warning(
+                            f"Arquivo {path} não encontrado para deletar."
+                            )
+                    except Exception as e:
+                        self.remover_loger.error(
+                            f"Erro ao deletar o arquivo {path}: {e}")
 
             tile_mosaic_files.append(tile_mosaic_output)
             duration = time.perf_counter() - start
