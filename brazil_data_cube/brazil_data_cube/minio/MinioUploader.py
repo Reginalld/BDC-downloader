@@ -113,12 +113,12 @@ class MinioUploader:
             self.client.stat_object(self.bucket_name, object_name)
 
             if x == 0:
-                self.logger.info("Arquivo pulado, pois já existe no MinIO: %s", object_name)
+                self.logger.info(
+                    "Arquivo pulado, pois já existe no MinIO: %s", object_name
+                    )
 
             return True
         except S3Error as e:
             if e.code == "NoSuchKey":
                 return False
             raise
-
-

@@ -114,18 +114,19 @@ class TileProcessor:
             )
 
             for path in downloaded_files.values():
-                object_name=os.path.join(
+
+                object_name = os.path.join(
                         satellite,
                         tile or 'ponto',
                         os.path.basename(path)
                     )
-                
+
                 self.minio_uploader.upload_file(
                     path,
                     object_name=object_name
                 )
 
-                if self.minio_uploader.object_exists(object_name, x=1) is True:
+                if self.minio_uploader.object_exists(object_name, x=1):
                     self.remover_loger.info(
                         f"Arquivo no diretório {path} será deletado localmente"
                         )

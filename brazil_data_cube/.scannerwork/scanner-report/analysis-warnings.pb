@@ -1,3 +1,0 @@
-ó
-çProperty 'sonar.password' is deprecated. It will not be supported in the future. Please instead use the 'sonar.login' parameter with a token.úÍ»πÉ3ò
-éYour code is analyzed as compatible with python 2 and 3 by default. This will prevent the detection of issues specific to python 2 or python 3. You can get a more precise analysis by setting a python version in your configuration via the parameter "sonar.python.version"®ˆ»πÉ3

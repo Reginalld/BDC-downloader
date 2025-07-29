@@ -34,4 +34,4 @@ COPY . .
 EXPOSE 8000
 
 # Rodar o servidor FastAPI com Gunicorn
-CMD ["gunicorn", "main_api:app", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]
+CMD ["gunicorn", "main_api:app", "-k", "uvicorn.workers.UvicornWorker"]

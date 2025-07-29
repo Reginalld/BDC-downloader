@@ -11,7 +11,7 @@ import requests
 from tqdm import tqdm
 
 from brazil_data_cube.config import (REDUCTION_FACTOR, SHAPEFILE_PATH_LANDSAT,
-                                     TILES_PATH_LANDSAT, TILES_PATH_SENTINEL)
+                                     TILES_PATH_LANDSAT, TILES_PATH_SENTINEL,MINIO_ENDPOINT,MINIO_BUCKET,MINIO_ACCESS_KEY,MINIO_SECRET_KEY,MINIO_SECURE)
 from brazil_data_cube.downloader.download_bands import DownloadBands
 from brazil_data_cube.downloader.fetcher import SatelliteImageFetcher
 from brazil_data_cube.minio.MinioUploader import MinioUploader
@@ -33,7 +33,6 @@ class ImageDownloader:
         self.logger = logger
         self.create_output()
         self.remover_log = ResultManager.setup_deletion_logger()
-
 
     def create_output(self) -> None:
         """Cria diretório de saída se ele não existir."""
@@ -127,11 +126,11 @@ class ImageDownloader:
         )
 
         uploader = MinioUploader(
-            endpoint="localhost:9000",
-            access_key="P8qQeeRKP6pHWDGuKiLi",
-            secret_key="v7aKWRVPoN76hNQirzefTeeWsnSsNGHlz5AHI1QU",
-            bucket_name="imagens-brutas",
-            secure=False
+            endpoint=MINIO_ENDPOINT,
+            access_key=MINIO_ACCESS_KEY,
+            secret_key=MINIO_SECRET_KEY,
+            bucket_name=MINIO_BUCKET,
+            secure=MINIO_SECURE
         )
 
         year_month = datetime.strptime(
@@ -217,34 +216,34 @@ class ImageDownloader:
             tile_id or 'ponto'
         )
 
-
         # Prefixo no bucket pode conter data ou nome da tile
         for path in downloaded_files.values():
 
-            object_name=os.path.join(
+            object_name = os.path.join(
                     satellite,
                     tile_id or 'ponto',
                     os.path.basename(path)
                 )
-            
+
             uploader.upload_file(
                 path,
                 object_name=object_name
             )
 
             if uploader.object_exists(object_name, x=1):
-                self.remover_log.info(f"Arquivo no diretório {path} será deletado localmente")
+                self.remover_log.info(
+                    f"Arquivo no diretório {path} será deletado localmente"
+                    )
                 try:
                     os.remove(path)
-                    self.remover_log.info(f"Arquivo {path} deletado com sucesso.")
+                    self.remover_log.info(
+                        f"Arquivo {path} deletado com sucesso."
+                        )
                 except FileNotFoundError:
-                    self.remover_log.warning(f"Arquivo {path} não encontrado para deletar.")
+                    self.remover_log.warning(
+                        f"Arquivo {path} não encontrado para deletar."
+                        )
                 except Exception as e:
-                    self.remover_log.error(f"Erro ao deletar o arquivo {path}: {e}")
-
-            
-                
-                
-                
-
-            
+                    self.remover_log.error(
+                        f"Erro ao deletar o arquivo {path}: {e}"
+                        )

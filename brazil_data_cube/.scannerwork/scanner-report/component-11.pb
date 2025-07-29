@@ -1,1 +1,0 @@
- 2xmlXhr!shapefile_ids/WRS2_descending.xml

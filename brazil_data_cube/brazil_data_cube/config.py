@@ -1,6 +1,9 @@
 # brazil_data_cube/config.py
-
+import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()  # Carrega as variáveis do .env
 
 # Diretório raiz do projeto
 ROOT_DIR = Path(__file__).parent.parent.absolute()
@@ -17,6 +20,13 @@ LOG_FILE = "log/brazil_data_cube_log.txt"
 
 TILES_PATH_SENTINEL = DATA_DIR / "shapefile_ids" / "sentinel_UFids.json"
 TILES_PATH_LANDSAT = DATA_DIR / "shapefile_ids" / "landsat_UFids.json"
+
+# Variáveis sensíveis
+MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT")
+MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY")
+MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY")
+MINIO_BUCKET = os.getenv("MINIO_BUCKET")
+MINIO_SECURE = os.getenv("MINIO_SECURE", "false").lower() == "true"
 
 # sqa_c8322b9bfa56cc3a7de40b2b59c55ba531b4e740 - sonarqube token
 

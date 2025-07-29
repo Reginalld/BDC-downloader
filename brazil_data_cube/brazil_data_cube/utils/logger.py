@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Dict, List
 
 import pandas as pd
+
 from brazil_data_cube.config import LOG_DIR
 
 YEAR_MONTH_VARIABLE = "%Y-%m"
@@ -205,4 +206,3 @@ class ResultManager:
             logger.propagate = False
 
         return logger
-
