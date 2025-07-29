@@ -1,4 +1,6 @@
-imagens/
+__pycache__/
+.env
 log/
+imagens/
 .scannerwork/
 scanner-report/
