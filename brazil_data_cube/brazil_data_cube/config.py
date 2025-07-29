@@ -28,8 +28,6 @@ MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY")
 MINIO_BUCKET = os.getenv("MINIO_BUCKET")
 MINIO_SECURE = os.getenv("MINIO_SECURE", "false").lower() == "true"
 
-# sqa_c8322b9bfa56cc3a7de40b2b59c55ba531b4e740 - sonarqube token
-
 # Satélites suportados
 SAT_SUPPORTED = ['S2_L2A-1', 'landsat-2']
 
