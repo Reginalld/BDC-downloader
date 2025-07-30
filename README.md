@@ -83,3 +83,6 @@ MINIO_SECURE=false
 - O projeto usa `python-dotenv` para carregar variáveis de ambiente automaticamente.
 
 
+[![Quality Gate](http://localhost:9000/api/project_badges/measure?project=brazil-data-cube&metric=alert_status)](http://localhost:9000/dashboard?id=brazil-data-cube)
+
+
