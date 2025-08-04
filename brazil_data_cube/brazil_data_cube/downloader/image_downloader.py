@@ -8,10 +8,11 @@ from datetime import datetime
 from typing import Optional
 
 import requests
-from tqdm import tqdm
-
-from brazil_data_cube.config import (REDUCTION_FACTOR, SHAPEFILE_PATH_LANDSAT,
-                                     TILES_PATH_LANDSAT, TILES_PATH_SENTINEL,MINIO_ENDPOINT,MINIO_BUCKET,MINIO_ACCESS_KEY,MINIO_SECRET_KEY,MINIO_SECURE)
+from brazil_data_cube.config import (MINIO_ACCESS_KEY, MINIO_BUCKET,
+                                     MINIO_ENDPOINT, MINIO_SECRET_KEY,
+                                     MINIO_SECURE, REDUCTION_FACTOR,
+                                     SHAPEFILE_PATH_LANDSAT,
+                                     TILES_PATH_LANDSAT, TILES_PATH_SENTINEL)
 from brazil_data_cube.downloader.download_bands import DownloadBands
 from brazil_data_cube.downloader.fetcher import SatelliteImageFetcher
 from brazil_data_cube.minio.MinioUploader import MinioUploader
@@ -19,6 +20,7 @@ from brazil_data_cube.processors.tile_processor import TileProcessor
 from brazil_data_cube.utils.bdc_connection import BdcConnection
 from brazil_data_cube.utils.bounding_box_handler import BoundingBoxHandler
 from brazil_data_cube.utils.logger import ResultManager
+from tqdm import tqdm
 
 with open(TILES_PATH_LANDSAT, "r", encoding="utf-8") as f:
     LANDSAT_TILES_POR_UF = json.load(f)
