@@ -69,11 +69,11 @@ http://localhost:8000/docs
 # MinIO
 MINIO_ENDPOINT=localhost:9000
 
-MINIO_ACCESS_KEY=seu_usuario
+MINIO_ACCESS_KEY=sua_acces_key
 
-MINIO_SECRET_KEY=sua_senha
+MINIO_SECRET_KEY=sua_secret_key
 
-MINIO_BUCKET=imagens-brutas
+MINIO_BUCKET=seu_bucket
 
 MINIO_SECURE=false
 
