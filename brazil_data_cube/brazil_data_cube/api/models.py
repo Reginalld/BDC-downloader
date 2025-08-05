@@ -5,7 +5,8 @@ from typing import Optional
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from brazil_data_cube.config import (MAX_CLOUD_COVER_DEFAULT, SHAPEFILE_PATH,
-                                     TILES_PATH_LANDSAT, TILES_PATH_SENTINEL)
+                                     TILES_PATH_LANDSAT, TILES_PATH_SENTINEL,
+                                     SAT_SUPPORTED)
 
 with open(TILES_PATH_SENTINEL, "r", encoding="utf-8") as f:
     TILES_SENTINEL_POR_UF = json.load(f)
@@ -73,6 +74,17 @@ class DownloadRequest(BaseModel):
             raise ValueError("A data deve estar no formato YYYY-MM-DD")
         return v
 
+    @field_validator("satellite")
+    @classmethod
+    def validate_sat_input(cls, v):
+        if v in SAT_SUPPORTED:
+            return v
+        else:
+            raise ValueError(
+                "Satellite não suportado, "
+                f"escolha entre {SAT_SUPPORTED}"
+            )
+
     @model_validator(mode="after")
     def validate_date_range(self):
         start = datetime.strptime(self.start_date, DATE_FORMAT)
@@ -117,32 +129,32 @@ class DownloadRequest(BaseModel):
 
         # Caso 1: O ID é um tile específico
         if self.tile_id in ALL_SENTINEL_TILES and \
-                self.satellite == "landsat-2":
+                self.satellite == "LANDSAT":
             raise ValueError(
                 f"O tile '{self.tile_id}' é do Sentinel, "
-                "mas o satélite selecionado é landsat-2."
+                "mas o satélite selecionado é landsat."
                 )
 
-        if self.tile_id in ALL_LANDSAT_TILES and self.satellite == "S2_L2A-1":
+        if self.tile_id in ALL_LANDSAT_TILES and self.satellite == "S2":
             raise ValueError(
                 f"O tile '{self.tile_id}' é do Landsat, "
-                "mas o satélite selecionado é S2_L2A-1."
+                "mas o satélite selecionado é S2."
                 )
 
         # Caso 2: O ID é uma sigla de estado (UF)
         if self.tile_id in ALL_VALID_UFS:
-            if self.satellite == "S2_L2A-1" and \
+            if self.satellite == "S2" and \
                     self.tile_id not in UFS_SENTINEL:
                 raise ValueError(
                     f"O estado '{self.tile_id}' não possui tiles "
-                    "disponíveis para o satélite S2_L2A-1."
+                    "disponíveis para o satélite S2."
                     )
 
-            if self.satellite == "landsat-2" and \
+            if self.satellite == "LANDSAT" and \
                     self.tile_id not in UFS_LANDSAT:
                 raise ValueError(
                     f"O estado '{self.tile_id}' não possui tiles "
-                    "disponíveis para o satélite landsat-2."
+                    "disponíveis para o satélite landsat."
                     )
 
         return self

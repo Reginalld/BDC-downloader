@@ -26,10 +26,10 @@ MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT")
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY")
 MINIO_BUCKET = os.getenv("MINIO_BUCKET")
-MINIO_SECURE = os.getenv("MINIO_SECURE")
+MINIO_SECURE = os.getenv("MINIO_SECURE", "false").lower() == "true"
 
 # Satélites suportados
-SAT_SUPPORTED = ['S2_L2A-1', 'landsat-2']
+SAT_SUPPORTED = ['S2', 'LANDSAT']
 
 # Configurações padrão
 DEFAULT_RADIUS_KM = 10.0

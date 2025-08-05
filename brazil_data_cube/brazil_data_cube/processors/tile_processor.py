@@ -62,7 +62,7 @@ class TileProcessor:
 
             tile_grid = gpd.read_file(self.tile_grid_path)
 
-            if satellite == "S2_L2A-1":
+            if satellite == "S2":
                 tile_grid = tile_grid[tile_grid["NAME"] == tile]
             else:
                 path = int(tile[:3])

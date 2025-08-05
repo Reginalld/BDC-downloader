@@ -32,16 +32,23 @@ class SatelliteImageFetcher:
             Optional[Dict]: Assets da imagem ou None se não encontrar
         """
         try:
+            if satellite == "S2":
+                satellite_fetcher = "S2_L2A-1"
+            elif satellite == "LANDSAT":
+                satellite_fetcher = "landsat-2"
+
             self.logger.info(f"Buscando imagens do {satellite}...")
 
             # Construindo filtro com base no satélite
-            stac_filter = self._build_filter(satellite, max_cloud_cover)
+            stac_filter = self._build_filter(
+                satellite_fetcher, max_cloud_cover
+                )
 
             # Executa a busca na API com os parâmetros fornecidos
             search_result = self.connection.search(
                 bbox=bounding_box,
                 datetime=[start_date, end_date],
-                collections=[satellite],
+                collections=[satellite_fetcher],
                 filter=stac_filter  # Filtro não funcional
                                     # no Stac utilizado pelo BDC
             )
@@ -90,7 +97,7 @@ class SatelliteImageFetcher:
 
                 # Tenta extrair o ID do tile usando os
                 # properties do BDC da primeira imagem
-                if satellite == "S2_L2A-1":
+                if satellite == "S2":
                     tile = items[0].properties.get('tileId', '')
                 else:
                     tile = items[0].properties.get('bdc:tiles', '')
@@ -139,7 +146,7 @@ class SatelliteImageFetcher:
         """
         cloud_property = "eo:cloud_cover"
 
-        if satellite == 'S2_L2A-1':
+        if satellite == 'S2':
             return {
                 "op": "and",
                 "args": [
@@ -161,7 +168,5 @@ class SatelliteImageFetcher:
                 "op": "lte",
                 "args": [{"property": cloud_property}, max_cloud_cover],
             }
-        elif satellite == 'landsat-2':
+        elif satellite == 'LANDSAT':
             return {}
-        else:
-            raise ValueError(f"Satélite '{satellite}' não suportado.")

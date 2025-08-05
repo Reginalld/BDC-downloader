@@ -58,7 +58,7 @@ class BoundingBoxHandler:
                 )
 
             tile_grid = gpd.read_file(tile_grid_path)
-            if satellite == "S2_L2A-1":
+            if satellite == "S2":
                 tile_grid = tile_grid[tile_grid["NAME"] == tile_id]
             else:
                 path = int(tile_id[:3])
