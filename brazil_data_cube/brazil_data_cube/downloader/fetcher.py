@@ -15,7 +15,7 @@ class SatelliteImageFetcher:
 
     def fetch_image(self, satellite: str, bounding_box: list, start_date: str,
                     end_date: str, max_cloud_cover: float, tile_grid_path: str,
-                    tile: Optional[str]) -> Optional[Dict[str, Any]]:
+                    min_geometry_cover: float, tile: Optional[str]) -> Optional[Dict[str, Any]]:
         """
         Busca uma imagem usando filtro de nuvem e geometria.
 
@@ -72,7 +72,7 @@ class SatelliteImageFetcher:
                 # Filtra imagens que cobrem adequadamente o tile
                 items = [
                         item for item in items if
-                        geometry_utils.is_good_geometry(item, tile, satellite)
+                        geometry_utils.is_good_geometry(item, tile, satellite, min_geometry_cover)
                         ]
 
                 if not items:
@@ -108,7 +108,7 @@ class SatelliteImageFetcher:
                 # a geometria da imagem com base no tile inferido
                 items = [
                     item for item in items
-                    if geometry_utils.is_good_geometry(item, tile, satellite)
+                    if geometry_utils.is_good_geometry(item, tile, satellite, min_geometry_cover)
                 ]
 
             # Seleciona a melhor imagem (menor cobertura de nuvem)
@@ -118,6 +118,10 @@ class SatelliteImageFetcher:
             )
 
             best_item = items[0]
+
+            if best_item.properties.get('eo:cloud_cover', float('inf')) > max_cloud_cover:
+                self.logger.warning("Nenhuma imagem que respeite o limite de nuvem foi encontrada")
+                return None
 
             cloud_cover = best_item.properties.get(
                 'eo:cloud_cover', 'desconhecido'

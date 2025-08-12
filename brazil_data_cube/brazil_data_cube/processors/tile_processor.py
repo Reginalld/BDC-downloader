@@ -21,7 +21,8 @@ class TileProcessor:
         output_dir: str,
         tile_grid_path: str,
         max_cloud_cover: float,
-        minio_uploader: any
+        minio_uploader: any,
+        min_geometry_cover: float
     ):
         self.fetcher = fetcher
         self.logger = logger
@@ -33,6 +34,7 @@ class TileProcessor:
         self.bbox_handler = BoundingBoxHandler(self.logger)
         self.result_manager = ResultManager(logger)
         self.minio_uploader = minio_uploader
+        self.min_geometry_cover = min_geometry_cover
 
     def process_tile_list(
         self,
@@ -87,6 +89,7 @@ class TileProcessor:
                 end_date,
                 self.max_cloud_cover,
                 self.tile_grid_path,
+                self.min_geometry_cover,
                 tile
             )
 
@@ -116,7 +119,7 @@ class TileProcessor:
             for path in downloaded_files.values():
 
                 object_name = os.path.join(
-                        satellite,
+                        satellite.lower(),
                         tile or 'ponto',
                         os.path.basename(path)
                     )

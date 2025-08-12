@@ -14,7 +14,8 @@ class GeometryUtils:
         self,
         item: Any,
         tile_id: str,
-        satellite: str
+        satellite: str,
+        min_geometry_cover: float
     ) -> bool:
         """
         Valida se a imagem cobre mais de 82% de geometria do tile especificado.
@@ -47,7 +48,9 @@ class GeometryUtils:
         item_geom = shape(item.geometry)
         intersection = tile_geom.intersection(item_geom)
 
-        if intersection.area / tile_geom.area >= 0.82:
+        percentage_geometry = min_geometry_cover / 100
+
+        if intersection.area / tile_geom.area >= percentage_geometry:
             return True
 
         self.logger.debug(

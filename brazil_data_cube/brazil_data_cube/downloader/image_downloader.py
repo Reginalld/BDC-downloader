@@ -115,7 +115,8 @@ class ImageDownloader:
         start_date: str,
         end_date: str,
         tile_grid_path: str,
-        max_cloud_cover: float
+        max_cloud_cover: float,
+        min_geometry_cover: float
     ) -> None:
         """
         Executa todo o processo de busca, download e preparação da imagem.
@@ -168,7 +169,8 @@ class ImageDownloader:
                 self.output_dir,
                 tile_grid_path,
                 max_cloud_cover,
-                uploader
+                uploader,
+                min_geometry_cover
             ).process_tile_list(
                 tile_list, satellite, start_date, end_date
             )
@@ -194,6 +196,7 @@ class ImageDownloader:
             end_date,
             max_cloud_cover,
             tile_grid_path,
+            min_geometry_cover,
             tile_id or ""
         )
 
@@ -222,7 +225,7 @@ class ImageDownloader:
         for path in downloaded_files.values():
 
             object_name = os.path.join(
-                    satellite,
+                    satellite.lower(),
                     tile_id or 'ponto',
                     os.path.basename(path)
                 )

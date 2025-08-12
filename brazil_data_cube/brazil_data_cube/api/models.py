@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from brazil_data_cube.config import (MAX_CLOUD_COVER_DEFAULT, SHAPEFILE_PATH,
                                      TILES_PATH_LANDSAT, TILES_PATH_SENTINEL,
-                                     SAT_SUPPORTED)
+                                     SAT_SUPPORTED, MIN_GEOMETRY_COVER_DEFAULT)
 
 with open(TILES_PATH_SENTINEL, "r", encoding="utf-8") as f:
     TILES_SENTINEL_POR_UF = json.load(f)
@@ -47,6 +47,7 @@ class DownloadRequest(BaseModel):
     end_date: str
     tile_grid_path: str = SHAPEFILE_PATH
     max_cloud_cover: float = MAX_CLOUD_COVER_DEFAULT
+    min_geometry_cover: float = MIN_GEOMETRY_COVER_DEFAULT
 
     @field_validator("tile_id")
     @classmethod
