@@ -118,11 +118,17 @@ class TileProcessor:
 
             for path in downloaded_files.values():
 
+                # object_name = os.path.join(
+                #         satellite.lower(),
+                #         tile or 'ponto',
+                #         os.path.basename(path)
+                #     )
+
                 object_name = os.path.join(
-                        satellite.lower(),
-                        tile or 'ponto',
-                        os.path.basename(path)
-                    )
+                    'apps',
+                    'eletronuclear',
+                    os.path.basename(path)
+                )
 
                 self.minio_uploader.upload_file(
                     path,

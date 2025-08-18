@@ -224,9 +224,14 @@ class ImageDownloader:
         # Prefixo no bucket pode conter data ou nome da tile
         for path in downloaded_files.values():
 
+            # object_name = os.path.join(
+            #         satellite.lower(),
+            #         tile_id or 'ponto',
+            #         os.path.basename(path)
+            #     )
             object_name = os.path.join(
-                    satellite.lower(),
-                    tile_id or 'ponto',
+                    'apps',
+                    'eletronuclear',
                     os.path.basename(path)
                 )
 
