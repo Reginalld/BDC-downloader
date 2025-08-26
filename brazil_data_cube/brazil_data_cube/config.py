@@ -13,6 +13,9 @@ DATA_DIR = ROOT_DIR / ""
 IMAGES_DIR = DATA_DIR / "imagens"
 SHAPEFILE_PATH = DATA_DIR / "shapefile_ids" / "grade_sentinel_brasil.shp"
 SHAPEFILE_PATH_LANDSAT = DATA_DIR / "shapefile_ids" / "WRS2_descending.shp"
+SHAPEFILE_PATH_CBERS4AWFI = DATA_DIR / "shapefiles_ids" / "grid_cbers4a_wfi.kmz"
+SHAPEFILE_PATH_CBERS4AMUX = DATA_DIR / "shapefile_ids" / "grid_cbers4a_mux.kmz"
+SHAPEFILE_PATH_CBERS4MUX = DATA_DIR / "shapefile_ids" / "GradeCbers4_MUX.kmz"
 LOG_DIR = DATA_DIR / "log"
 CSV_DIR = DATA_DIR / "temp"
 LOG_CSV_PATH = DATA_DIR / "log/falhas_download.csv"
@@ -20,6 +23,9 @@ LOG_FILE = "log/brazil_data_cube_log.txt"
 
 TILES_PATH_SENTINEL = DATA_DIR / "shapefile_ids" / "sentinel_UFids.json"
 TILES_PATH_LANDSAT = DATA_DIR / "shapefile_ids" / "landsat_UFids.json"
+TILES_PATH_CBERS4AMUX = DATA_DIR / "shapefile_ids" / "cbers4a_mux.json"
+TILES_PATH_CBERS4AWFI = DATA_DIR / "shapefiles_ids" / "cbers4a_wfi.json"
+TILES_PATH_CBERS4MUX = DATA_DIR / "shapefiles_ids" / "GradeCbers4_MUX.json"
 
 # Variáveis sensíveis
 MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT")
@@ -29,7 +35,7 @@ MINIO_BUCKET = os.getenv("MINIO_BUCKET")
 MINIO_SECURE = os.getenv("MINIO_SECURE", "false").lower() == "true"
 
 # Satélites suportados
-SAT_SUPPORTED = ['S2', 'LANDSAT']
+SAT_SUPPORTED = ['S2', 'LANDSAT','CB4A-WPM-PCA-FUSED-1']
 
 # Configurações padrão
 DEFAULT_RADIUS_KM = 10.0

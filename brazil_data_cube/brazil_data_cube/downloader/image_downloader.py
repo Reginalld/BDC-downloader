@@ -11,8 +11,11 @@ import requests
 from brazil_data_cube.config import (MINIO_ACCESS_KEY, MINIO_BUCKET,
                                      MINIO_ENDPOINT, MINIO_SECRET_KEY,
                                      MINIO_SECURE, REDUCTION_FACTOR,
-                                     SHAPEFILE_PATH_LANDSAT,
-                                     TILES_PATH_LANDSAT, TILES_PATH_SENTINEL)
+                                     SHAPEFILE_PATH_LANDSAT, SHAPEFILE_PATH_CBERS4AMUX,
+                                     SHAPEFILE_PATH_CBERS4AWFI, SHAPEFILE_PATH_CBERS4MUX,
+                                     TILES_PATH_LANDSAT, TILES_PATH_SENTINEL,
+                                     TILES_PATH_CBERS4MUX, TILES_PATH_CBERS4AMUX,
+                                     TILES_PATH_CBERS4AWFI)
 from brazil_data_cube.downloader.download_bands import DownloadBands
 from brazil_data_cube.downloader.fetcher import SatelliteImageFetcher
 from brazil_data_cube.minio.MinioUploader import MinioUploader
@@ -27,6 +30,15 @@ with open(TILES_PATH_LANDSAT, "r", encoding="utf-8") as f:
 
 with open(TILES_PATH_SENTINEL, "r", encoding="utf-8") as f:
     SENTINEL_TILES_POR_UF = json.load(f)
+
+with open(TILES_PATH_CBERS4AWFI, "r", encoding="utf-8") as f:
+    CBERS4AWFI_TILES_POR_UF = json.load(f)
+
+with open(TILES_PATH_CBERS4AMUX, "r", encoding="utf-8") as f:
+    CBERS4AMUX_TILES_POR_UF = json.load(f)
+    
+with open(TILES_PATH_CBERS4MUX, "r", encoding="utf-8") as f:
+    CBERS4MUX_TILES_POR_UF = json.load(f)
 
 
 class ImageDownloader:
@@ -141,12 +153,22 @@ class ImageDownloader:
         ).strftime("%Y-%m")
         self.output_dir = os.path.join(self.output_dir, satellite, year_month)
         self.create_output()
+        caminho_minio = None
 
         if "landsat" in satellite.lower():
             tile_grid_path = SHAPEFILE_PATH_LANDSAT
             tiles_por_uf = LANDSAT_TILES_POR_UF
+            caminho_minio = "landsat"
         elif "s2" in satellite.lower() or "sentinel" in satellite.lower():
             tiles_por_uf = SENTINEL_TILES_POR_UF
+            caminho_minio = "s2"
+        elif "cb" in satellite.lower():
+            caminho_minio = "cbers"
+            
+            if "4a" in satellite.lower() and "mux" in satellite.lower():
+                tiles_por_uf = CBERS4AMUX_TILES_POR_UF
+            elif "4a" in satellite.lower() and "wfi" in satellite.lower():
+                tiles_por_uf = CBERS4AWFI_TILES_POR_UF
 
         if tile_id and tile_id.upper() in tiles_por_uf:
             uf = tile_id.upper()
@@ -204,13 +226,16 @@ class ImageDownloader:
             print("Nenhuma imagem encontrada.")
             return
 
-        prefix = (
-            f"{tile_id}_{radius_final:.2f}"
-            f"KM_{satellite}_{start_date}_{end_date}"
-            if tile_id else
-            f"{radius_final:.2f}KM_{satellite}_{lat_final:.3f}_"
-            f"{lon_final:.3f}_{start_date}_{end_date}"
-        )
+        data_criacao = image_assets.properties.get('created','')
+
+        if satellite in "S2_L2A-1":
+            prefix = (
+                f"S2A_SENTINEL2_{tile_id}"
+                f"_{data_criacao}_L2A"
+                if tile_id else
+                f"{radius_final:.2f}KM_{satellite}_{lat_final:.3f}_"
+                f"{lon_final:.3f}_{start_date}_{end_date}"
+            )
 
         downloaded_files = DownloadBands(self.logger).download_bands(
             image_assets,
@@ -230,8 +255,7 @@ class ImageDownloader:
             #         os.path.basename(path)
             #     )
             object_name = os.path.join(
-                    'apps',
-                    'eletronuclear',
+                    'cbers',
                     os.path.basename(path)
                 )
 
