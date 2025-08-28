@@ -116,7 +116,7 @@ class ImageDownloader:
                         f"Falha definitiva no download de {filename}: {e}"
                     )
                     return None
-
+                
     def execute_download(
         self,
         satellite: str,
@@ -154,21 +154,30 @@ class ImageDownloader:
         self.output_dir = os.path.join(self.output_dir, satellite, year_month)
         self.create_output()
         caminho_minio = None
+        mission = None
+        sat = None
+        level = None
 
         if "landsat" in satellite.lower():
             tile_grid_path = SHAPEFILE_PATH_LANDSAT
             tiles_por_uf = LANDSAT_TILES_POR_UF
             caminho_minio = "landsat"
+            mission = "LANDSAT"
+            sat = "L9"
+            level = "level-2"
         elif "s2" in satellite.lower() or "sentinel" in satellite.lower():
             tiles_por_uf = SENTINEL_TILES_POR_UF
             caminho_minio = "s2"
+            mission = "SENTINEL2"
+            sat = "S2A"
+            level = "L2A"
         elif "cb" in satellite.lower():
+            tile_grid_path = SHAPEFILE_PATH_CBERS4MUX
+            tiles_por_uf = CBERS4MUX_TILES_POR_UF
             caminho_minio = "cbers"
-            
-            if "4a" in satellite.lower() and "mux" in satellite.lower():
-                tiles_por_uf = CBERS4AMUX_TILES_POR_UF
-            elif "4a" in satellite.lower() and "wfi" in satellite.lower():
-                tiles_por_uf = CBERS4AWFI_TILES_POR_UF
+            mission = "CBERS"
+            sat = "CB4"
+            level = "SR"
 
         if tile_id and tile_id.upper() in tiles_por_uf:
             uf = tile_id.upper()
@@ -228,13 +237,11 @@ class ImageDownloader:
 
         data_criacao = image_assets.properties.get('created','')
 
-        if satellite in "S2_L2A-1":
-            prefix = (
-                f"S2A_SENTINEL2_{tile_id}"
-                f"_{data_criacao}_L2A"
-                if tile_id else
-                f"{radius_final:.2f}KM_{satellite}_{lat_final:.3f}_"
-                f"{lon_final:.3f}_{start_date}_{end_date}"
+        image_assets = image_assets.assets
+
+        prefix = (
+                f"{sat}_{mission}_{tile_id}"
+                f"_{data_criacao}_{level}"
             )
 
         downloaded_files = DownloadBands(self.logger).download_bands(
@@ -255,7 +262,7 @@ class ImageDownloader:
             #         os.path.basename(path)
             #     )
             object_name = os.path.join(
-                    'cbers',
+                    caminho_minio,
                     os.path.basename(path)
                 )
 

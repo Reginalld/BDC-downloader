@@ -6,7 +6,8 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from brazil_data_cube.config import (MAX_CLOUD_COVER_DEFAULT, SHAPEFILE_PATH,
                                      TILES_PATH_LANDSAT, TILES_PATH_SENTINEL,
-                                     SAT_SUPPORTED, MIN_GEOMETRY_COVER_DEFAULT)
+                                     SAT_SUPPORTED, MIN_GEOMETRY_COVER_DEFAULT,
+                                     TILES_PATH_CBERS4MUX)
 
 with open(TILES_PATH_SENTINEL, "r", encoding="utf-8") as f:
     TILES_SENTINEL_POR_UF = json.load(f)
@@ -14,11 +15,15 @@ with open(TILES_PATH_SENTINEL, "r", encoding="utf-8") as f:
 with open(TILES_PATH_LANDSAT, "r", encoding="utf-8") as f:
     TILES_LANDSAT_POR_UF = json.load(f)
 
+with open(TILES_PATH_CBERS4MUX, "r", encoding="utf-8") as f:
+    TILES_CBERS4A_MUX_POR_UF = json.load(f)
+
 DATE_FORMAT = "%Y-%m-%d"
 
 UFS_SENTINEL = set(TILES_SENTINEL_POR_UF.keys())
 UFS_LANDSAT = set(TILES_LANDSAT_POR_UF.keys())
-ALL_VALID_UFS = UFS_SENTINEL | UFS_LANDSAT
+UFS_CBERS4A_MUX = set(TILES_CBERS4A_MUX_POR_UF.keys())
+ALL_VALID_UFS = UFS_SENTINEL | UFS_LANDSAT | UFS_CBERS4A_MUX
 
 # Conjuntos com TODOS os IDs de tiles válidos para cada satélite
 ALL_SENTINEL_TILES = {
@@ -29,7 +34,11 @@ ALL_LANDSAT_TILES = {
                     tile for tiles_list in TILES_LANDSAT_POR_UF.values()
                     for tile in tiles_list
                     }
-ALL_VALID_TILES = ALL_SENTINEL_TILES | ALL_LANDSAT_TILES
+ALL_CBERS4_MUX_TILES = {
+                        tile for tiles_list in TILES_CBERS4A_MUX_POR_UF.values()
+                        for tile in tiles_list
+                       }
+ALL_VALID_TILES = ALL_SENTINEL_TILES | ALL_LANDSAT_TILES | ALL_CBERS4_MUX_TILES
 
 
 class DownloadRequest(BaseModel):
@@ -39,7 +48,7 @@ class DownloadRequest(BaseModel):
     tile_id: Optional[str] = Field(
         None,
         min_length=2,
-        max_length=6,
+        max_length=7,
         description="Sigla do estado brasileiro (ex: 'PR', 'SP')"
     )
     radius_km: Optional[float] = Field(10.0, ge=0.1, le=100.0)

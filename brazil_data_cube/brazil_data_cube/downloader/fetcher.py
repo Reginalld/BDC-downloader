@@ -36,6 +36,8 @@ class SatelliteImageFetcher:
                 satellite_fetcher = "S2_L2A-1"
             elif satellite == "LANDSAT":
                 satellite_fetcher = "landsat-2"
+            elif satellite == "CBERS4-MUX-2M-1":
+                satellite_fetcher = "CBERS4-MUX-2M-1"
 
             self.logger.info(f"Buscando imagens do {satellite}...")
 
@@ -130,7 +132,7 @@ class SatelliteImageFetcher:
                 f"Imagem selecionada com {cloud_cover}% de nuvem."
             )
 
-            return best_item.assets  # Retorna os assets da imagem selecionada
+            return best_item  # Retorna os assets da imagem selecionada
 
         except Exception as e:
             error_msg = str(e)
@@ -172,5 +174,5 @@ class SatelliteImageFetcher:
                 "op": "lte",
                 "args": [{"property": cloud_property}, max_cloud_cover],
             }
-        elif satellite == 'LANDSAT':
+        else:
             return {}
