@@ -72,18 +72,16 @@ class BoundingBoxHandler:
 
             tile_grid = gpd.read_file(tile_grid_path)
             
-            # Ensure the CRS is EPSG:4326 for geographic coordinates
             if tile_grid.crs and tile_grid.crs.to_epsg() != 4326:
                 self.logger.info(f"Convertendo CRS de {tile_grid.crs} para EPSG:4326.")
                 tile_grid = tile_grid.to_crs(epsg=4326)
 
-            # Filter the grid to find the specific tile
             if "CB" in satellite:
                 normalized_tile_id = tile_id.replace("_", "/")
                 tile_data = tile_grid[tile_grid["Name"] == normalized_tile_id]
             elif satellite == "S2":
                 tile_data = tile_grid[tile_grid["NAME"] == tile_id]
-            else:  # Landsat Path/Row
+            else:  
                 path = int(tile_id[:3])
                 row = int(tile_id[3:])
                 tile_data = tile_grid[(tile_grid["PATH"] == path) & (tile_grid["ROW"] == row)]
@@ -93,19 +91,15 @@ class BoundingBoxHandler:
                 self.logger.error(msg)
                 raise ValueError(msg)
 
-            # -- SIMPLIFIED: Cleanly get geometry, convert to 2D, and get bounds once.
             tile_geometry_3d = tile_data.geometry.iloc[0]
             tile_geometry_2d = self.to_2d(tile_geometry_3d)
             minx, miny, maxx, maxy = tile_geometry_2d.bounds
 
-            # Apply reduction for non-CBERS satellites if desired
             if "CB" not in satellite:
-                # -- FIXED: Correctly call the refactored method.
                 main_bbox = self.calculate_reduced_bbox(minx, miny, maxx, maxy)
             else:
                 main_bbox = [minx, miny, maxx, maxy]
 
-            # Calculate center point and radius from the original tile bounds
             lat = (miny + maxy) / 2
             lon = (minx + maxx) / 2
             bbox_width_km = (maxx - minx) * 111.32 * math.cos(math.radians(lat))
@@ -113,7 +107,6 @@ class BoundingBoxHandler:
             radius_km = max(bbox_width_km, bbox_height_km) / 2
 
         elif lat is not None and lon is not None:
-            # This part remains the same
             from .bounding_box_calculator import BoundingBoxCalculator
             main_bbox = BoundingBoxCalculator.calculate(lat, lon, radius_km)
             self.logger.info("Processando sem tile ID.")
