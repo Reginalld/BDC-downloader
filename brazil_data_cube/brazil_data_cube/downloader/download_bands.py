@@ -64,16 +64,16 @@ class DownloadBands:
         elif satellite == "CBERS4-MUX-2M-1":
             bands = {
                 'EVI': 'EVI',
-                'NDVI': 'NDVI',
-                'BAND5': 'blue',
-                'BAND6': 'green',
-                'BAND7': 'red',
-                'BAND8': 'BAND8',
-                'CMASK': 'CMASK',
-                'CLEAROB': 'CLEAROB',
-                'TOTALOB': 'TOTALOB',
-                'thumbnail': 'thumbnail',
-                'PROVENANCE': 'PROVENANCE'
+                # 'NDVI': 'NDVI',
+                # 'BAND5': 'blue',
+                # 'BAND6': 'green',
+                # 'BAND7': 'red',
+                # 'BAND8': 'BAND8',
+                # 'CMASK': 'CMASK',
+                # 'CLEAROB': 'CLEAROB',
+                # 'TOTALOB': 'TOTALOB',
+                # 'thumbnail': 'thumbnail',
+                # 'PROVENANCE': 'PROVENANCE'
             }
 
         download_files = {}

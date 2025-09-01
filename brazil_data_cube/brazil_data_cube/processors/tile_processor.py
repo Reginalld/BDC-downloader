@@ -56,6 +56,7 @@ class TileProcessor:
         tile_mosaic_files = []
         results_time_estimated = []
         tile_list = tiles_list
+        caminho_minio = None
 
         for tile in tile_list:
             logging.info(tile)
@@ -66,12 +67,28 @@ class TileProcessor:
 
             if satellite == "S2":
                 tile_grid = tile_grid[tile_grid["NAME"] == tile]
+                caminho_minio = "s2"
+                mission = "SENTINEL2"
+                sat = "S2A"
+                level = "L2A"
+            elif "CB" in satellite:
+                normalized_tile_id = tile.replace("_", "/")
+                tile_grid = tile_grid[tile_grid["Name"] == normalized_tile_id]
+                caminho_minio = "cbers"
+                mission = "CBERS"
+                sat = "CB4"
+                level = "SR"
             else:
                 path = int(tile[:3])
                 row = int(tile[3:])
                 tile_grid = tile_grid[
                     (tile_grid["PATH"] == path) & (tile_grid["ROW"] == row)
                 ]
+                mission = "LANDSAT"
+                sat = "L9"
+                level = "level-2"
+                caminho_minio = "landsat"
+
 
             if tile_grid.empty:
                 self.logger.warning(
@@ -99,7 +116,13 @@ class TileProcessor:
                 )
                 continue
 
-            prefix = f"{tile}_{satellite}_{start_date}_{end_date}"
+            data_criacao = image_assets.properties.get('created','')
+
+            prefix = (
+                    f"{sat}_{mission}_{tile}"
+                    f"_{data_criacao}_{level}"
+                )
+            image_assets = image_assets.assets
 
             self.logger.info("Baixando e processando imagens...")
             downloaded_files = DownloadBands(self.logger).download_bands(
@@ -118,15 +141,8 @@ class TileProcessor:
 
             for path in downloaded_files.values():
 
-                # object_name = os.path.join(
-                #         satellite.lower(),
-                #         tile or 'ponto',
-                #         os.path.basename(path)
-                #     )
-
                 object_name = os.path.join(
-                    'apps',
-                    'eletronuclear',
+                    caminho_minio,
                     os.path.basename(path)
                 )
 

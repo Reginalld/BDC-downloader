@@ -110,7 +110,6 @@ class ImageDownloader:
                         f"Aguardando {sleep_time:.1f}s "
                         "antes da próxima tentativa..."
                     )
-                    time.sleep(sleep_time)
                 else:
                     self.logger.error(
                         f"Falha definitiva no download de {filename}: {e}"
@@ -157,6 +156,7 @@ class ImageDownloader:
         mission = None
         sat = None
         level = None
+        y = None
 
         if "landsat" in satellite.lower():
             tile_grid_path = SHAPEFILE_PATH_LANDSAT
@@ -178,6 +178,7 @@ class ImageDownloader:
             mission = "CBERS"
             sat = "CB4"
             level = "SR"
+            y = 1
 
         if tile_id and tile_id.upper() in tiles_por_uf:
             uf = tile_id.upper()
@@ -271,20 +272,20 @@ class ImageDownloader:
                 object_name=object_name
             )
 
-            if uploader.object_exists(object_name, x=1):
-                self.remover_log.info(
-                    f"Arquivo no diretório {path} será deletado localmente"
-                    )
-                try:
-                    os.remove(path)
-                    self.remover_log.info(
-                        f"Arquivo {path} deletado com sucesso."
-                        )
-                except FileNotFoundError:
-                    self.remover_log.warning(
-                        f"Arquivo {path} não encontrado para deletar."
-                        )
-                except Exception as e:
-                    self.remover_log.error(
-                        f"Erro ao deletar o arquivo {path}: {e}"
-                        )
+            # if uploader.object_exists(object_name, x=1):
+            #     self.remover_log.info(
+            #         f"Arquivo no diretório {path} será deletado localmente"
+            #         )
+            #     try:
+            #         os.remove(path)
+            #         self.remover_log.info(
+            #             f"Arquivo {path} deletado com sucesso."
+            #             )
+            #     except FileNotFoundError:
+            #         self.remover_log.warning(
+            #             f"Arquivo {path} não encontrado para deletar."
+            #             )
+            #     except Exception as e:
+            #         self.remover_log.error(
+            #             f"Erro ao deletar o arquivo {path}: {e}"
+            #             )

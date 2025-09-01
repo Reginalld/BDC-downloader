@@ -44,7 +44,6 @@ class MinioUploader:
                 #     self.client.make_bucket(self.bucket_name)
                 #     self.logger.info(f"Bucket criado: {self.bucket_name}")
 
-                time.sleep(1)
                 self.logger.debug(
                     "Tentativa %d de upload para: %s", attempt + 1, object_name
                 )
@@ -65,7 +64,6 @@ class MinioUploader:
                     "Tentativa %d falhou: %s -> %s: %s",
                     attempt, local_path, object_name, e
                 )
-                time.sleep(2 * attempt)
 
         self.logger.error(
             "Falha ao fazer upload após %d tentativas: %s",

@@ -13,12 +13,15 @@ class BoundingBoxHandler:
         self.logger = logger
 
     def calculate_reduced_bbox(
-        self, minx: float, miny: float, maxx: float, maxy: float
+        self, tile_grid: any
     ) -> List[float]:
         """
         Calcula uma bounding box reduzida com base nas coordenadas de um bbox existente.
-        -- REFACTORED: Now accepts coordinates directly for better modularity.
         """
+
+        tile_geometry = tile_grid.geometry.iloc[0]
+        minx, miny, maxx, maxy = tile_geometry.bounds
+
         center_x = (minx + maxx) / 2
         center_y = (miny + maxy) / 2
 
@@ -35,6 +38,31 @@ class BoundingBoxHandler:
             f"[{new_minx}, {new_miny}, {new_maxx}, {new_maxy}]"
         )
         return [new_minx, new_miny, new_maxx, new_maxy]
+    
+    def calculate_reduced_bbox_tile(
+        self, minx: float, miny: float, maxx: float, maxy: float
+    ) -> List[float]:
+        """
+        Calcula uma bounding box reduzida com base nas coordenadas de um bbox existente.
+        -- REFATORADA: Agora aceita coordenadas diretas para uma melhor modularidade.
+        """
+        center_x = (minx + maxx) / 2
+        center_y = (miny + maxy) / 2
+
+        width = (maxx - minx) * 0.005
+        height = (maxy - miny) * 0.005
+
+        new_minx = center_x - (width / 2)
+        new_maxx = center_x + (width / 2)
+        new_miny = center_y - (height / 2)
+        new_maxy = center_y + (height / 2)
+
+        self.logger.info(
+            f"Main_bbox ajustado: "
+            f"[{new_minx}, {new_miny}, {new_maxx}, {new_maxy}]"
+        )
+        return [new_minx, new_miny, new_maxx, new_maxy]
+
 
     @staticmethod
     def to_2d(geom):
@@ -96,7 +124,7 @@ class BoundingBoxHandler:
             minx, miny, maxx, maxy = tile_geometry_2d.bounds
 
             if "CB" not in satellite:
-                main_bbox = self.calculate_reduced_bbox(minx, miny, maxx, maxy)
+                main_bbox = self.calculate_reduced_bbox_tile(minx, miny, maxx, maxy)
             else:
                 main_bbox = [minx, miny, maxx, maxy]
 
