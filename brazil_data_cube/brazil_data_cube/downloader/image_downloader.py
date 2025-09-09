@@ -164,7 +164,7 @@ class ImageDownloader:
             caminho_minio = "landsat"
             mission = "LANDSAT"
             sat = "L9"
-            level = "level-2"
+            level = "LEVEL2"
         elif "s2" in satellite.lower() or "sentinel" in satellite.lower():
             tiles_por_uf = SENTINEL_TILES_POR_UF
             caminho_minio = "s2"
@@ -237,12 +237,21 @@ class ImageDownloader:
             return
 
         data_criacao = image_assets.properties.get('created','')
+        print(data_criacao)
 
         image_assets = image_assets.assets
 
+        if data_criacao:
+            # Converte de ISO para datetime
+            dt = datetime.fromisoformat(data_criacao.replace("Z", "+00:00"))
+            # Formata para o padrão YYYYMMDD
+            data_formatada = dt.strftime("%Y%m%d")
+        else:
+            data_formatada = "00000000"  # fallback
+
         prefix = (
                 f"{sat}_{mission}_{tile_id}"
-                f"_{data_criacao}_{level}"
+                f"_{data_formatada}_{level}"
             )
 
         downloaded_files = DownloadBands(self.logger).download_bands(

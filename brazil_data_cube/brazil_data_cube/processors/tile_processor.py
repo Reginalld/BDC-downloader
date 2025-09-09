@@ -3,6 +3,8 @@ import os
 import time
 
 import geopandas as gpd
+from datetime import datetime
+
 
 from brazil_data_cube.downloader.download_bands import DownloadBands
 
@@ -86,7 +88,7 @@ class TileProcessor:
                 ]
                 mission = "LANDSAT"
                 sat = "L9"
-                level = "level-2"
+                level = "LEVEL2"
                 caminho_minio = "landsat"
 
 
@@ -118,9 +120,17 @@ class TileProcessor:
 
             data_criacao = image_assets.properties.get('created','')
 
+            if data_criacao:
+                # Converte de ISO para datetime
+                dt = datetime.fromisoformat(data_criacao.replace("Z", "+00:00"))
+                # Formata para o padrão YYYYMMDD
+                data_formatada = dt.strftime("%Y%m%d")
+            else:
+                data_formatada = "00000000"  # fallback
+
             prefix = (
                     f"{sat}_{mission}_{tile}"
-                    f"_{data_criacao}_{level}"
+                    f"_{data_formatada}_{level}"
                 )
             image_assets = image_assets.assets
 
