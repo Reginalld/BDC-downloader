@@ -3,8 +3,10 @@ import math
 import os
 from typing import List, Optional, Tuple
 
+import fiona
 import geopandas as gpd
-from shapely.geometry import MultiPolygon, Polygon
+import pandas as pd
+from shapely.geometry import MultiPolygon, Polygon, shape
 
 
 class BoundingBoxHandler:
@@ -98,7 +100,22 @@ class BoundingBoxHandler:
                 self.logger.error(msg)
                 raise FileNotFoundError(msg)
 
-            tile_grid = gpd.read_file(tile_grid_path)
+            try:
+                self.logger.info(f"Carregando grade com projeção customizada: {tile_grid_path}")
+                with fiona.open(tile_grid_path, 'r') as collection:
+                    # Lê a definição da projeção (WKT) diretamente do arquivo
+                    custom_crs_wkt = collection.crs_wkt
+                    # Lê as geometrias e atributos
+                    records = [{'properties': rec['properties'], 'geometry': shape(rec['geometry'])} for rec in collection]
+
+                # Monta o GeoDataFrame manualmente para evitar o erro de CRS
+                attrs = pd.DataFrame([rec['properties'] for rec in records])
+                geoms = gpd.GeoSeries([rec['geometry'] for rec in records], crs=custom_crs_wkt)
+                tile_grid = gpd.GeoDataFrame(attrs, geometry=geoms)
+                self.logger.info(f"Grade '{os.path.basename(tile_grid_path)}' carregada com sucesso ({len(tile_grid)} tiles).")
+            except Exception as e:
+                self.logger.error(f"Falha ao carregar a grade de tiles '{tile_grid_path}': {e}")
+                raise  # Re-lança a exceção para parar a execução
             
             if tile_grid.crs and tile_grid.crs.to_epsg() != 4326:
                 self.logger.info(f"Convertendo CRS de {tile_grid.crs} para EPSG:4326.")

@@ -3,6 +3,8 @@ import os
 import time
 
 import geopandas as gpd
+import fiona
+from shapely.geometry import shape
 from datetime import datetime
 
 
@@ -38,6 +40,27 @@ class TileProcessor:
         self.minio_uploader = minio_uploader
         self.min_geometry_cover = min_geometry_cover
 
+    def _load_grid_robustly(self):
+        """
+        Carrega a grade de tiles de forma robusta, lidando com projeções customizadas
+        que causam erro no gpd.read_file() padrão.
+        """
+        self.logger.info(f"Carregando grade com projeção customizada: {self.tile_grid_path}")
+        try:
+            with fiona.open(self.tile_grid_path, 'r') as collection:
+                custom_crs_wkt = collection.crs_wkt
+                records = [{'properties': rec['properties'], 'geometry': shape(rec['geometry'])} for rec in collection]
+
+            attrs = gpd.pd.DataFrame([rec['properties'] for rec in records])
+            geoms = gpd.GeoSeries([rec['geometry'] for rec in records], crs=custom_crs_wkt)
+            grid = gpd.GeoDataFrame(attrs, geometry=geoms)
+            
+            self.logger.info(f"Grade '{os.path.basename(self.tile_grid_path)}' carregada com sucesso ({len(grid)} tiles).")
+            return grid
+        except Exception as e:
+            self.logger.error(f"Falha crítica ao carregar a grade de tiles: {e}")
+            return None
+
     def process_tile_list(
         self,
         tiles_list: any,
@@ -54,6 +77,11 @@ class TileProcessor:
                 "Paraná", satellite, "Satélite não suportado"
             )
             return
+        
+        tile_grid_master = self._load_grid_robustly()
+        if tile_grid_master is None:
+            self.logger.error("Não foi possível carregar a grade de tiles. Abortando processo.")
+            return
 
         tile_mosaic_files = []
         results_time_estimated = []
@@ -65,17 +93,15 @@ class TileProcessor:
             start = time.perf_counter()
             self.logger.info(f"Processando tile {tile}...")
 
-            tile_grid = gpd.read_file(self.tile_grid_path)
-
             if satellite == "S2":
-                tile_grid = tile_grid[tile_grid["NAME"] == tile]
+                tile_grid = tile_grid_master[tile_grid_master["NAME"] == tile]
                 caminho_minio = "s2"
                 mission = "SENTINEL2"
                 sat = "S2A"
                 level = "L2A"
             elif "CB" in satellite:
                 normalized_tile_id = tile.replace("_", "/")
-                tile_grid = tile_grid[tile_grid["Name"] == normalized_tile_id]
+                tile_grid = tile_grid_master[tile_grid_master["tile"] == normalized_tile_id]
                 caminho_minio = "cbers"
                 mission = "CBERS"
                 sat = "CB4"
@@ -83,8 +109,8 @@ class TileProcessor:
             else:
                 path = int(tile[:3])
                 row = int(tile[3:])
-                tile_grid = tile_grid[
-                    (tile_grid["PATH"] == path) & (tile_grid["ROW"] == row)
+                tile_grid = tile_grid_master[
+                    (tile_grid_master["PATH"] == path) & (tile_grid_master["ROW"] == row)
                 ]
                 mission = "LANDSAT"
                 sat = "L9"
@@ -98,8 +124,11 @@ class TileProcessor:
                     "na grade Sentinel-2. Pulando..."
                 )
                 continue
+            
+            self.logger.info("Reprojetando a geometria do tile para EPSG:4326 antes de calcular o bbox da API...")
+            tile_grid_wgs84 = tile_grid.to_crs("EPSG:4326")
 
-            main_bbox = self.bbox_handler.calculate_reduced_bbox(tile_grid)
+            main_bbox = self.bbox_handler.calculate_reduced_bbox(tile_grid_wgs84)
 
             image_assets = self.fetcher.fetch_image(
                 satellite,

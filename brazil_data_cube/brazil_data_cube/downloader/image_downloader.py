@@ -11,11 +11,10 @@ import requests
 from brazil_data_cube.config import (MINIO_ACCESS_KEY, MINIO_BUCKET,
                                      MINIO_ENDPOINT, MINIO_SECRET_KEY,
                                      MINIO_SECURE, REDUCTION_FACTOR,
-                                     SHAPEFILE_PATH_LANDSAT, SHAPEFILE_PATH_CBERS4AMUX,
-                                     SHAPEFILE_PATH_CBERS4AWFI, SHAPEFILE_PATH_CBERS4MUX,
+                                     SHAPEFILE_PATH_LANDSAT, SHAPEFILE_PATH_BDC_MD,
                                      TILES_PATH_LANDSAT, TILES_PATH_SENTINEL,
-                                     TILES_PATH_CBERS4MUX, TILES_PATH_CBERS4AMUX,
-                                     TILES_PATH_CBERS4AWFI)
+                                     TILES_PATH_BDC_MD_V2
+                                     )
 from brazil_data_cube.downloader.download_bands import DownloadBands
 from brazil_data_cube.downloader.fetcher import SatelliteImageFetcher
 from brazil_data_cube.minio.MinioUploader import MinioUploader
@@ -31,14 +30,9 @@ with open(TILES_PATH_LANDSAT, "r", encoding="utf-8") as f:
 with open(TILES_PATH_SENTINEL, "r", encoding="utf-8") as f:
     SENTINEL_TILES_POR_UF = json.load(f)
 
-with open(TILES_PATH_CBERS4AWFI, "r", encoding="utf-8") as f:
-    CBERS4AWFI_TILES_POR_UF = json.load(f)
+with open(TILES_PATH_BDC_MD_V2, "r", encoding="utf-8") as f:
+    BDC_MD_V2_TILES_POR_UF = json.load(f)
 
-with open(TILES_PATH_CBERS4AMUX, "r", encoding="utf-8") as f:
-    CBERS4AMUX_TILES_POR_UF = json.load(f)
-    
-with open(TILES_PATH_CBERS4MUX, "r", encoding="utf-8") as f:
-    CBERS4MUX_TILES_POR_UF = json.load(f)
 
 
 class ImageDownloader:
@@ -172,8 +166,8 @@ class ImageDownloader:
             sat = "S2A"
             level = "L2A"
         elif "cb" in satellite.lower():
-            tile_grid_path = SHAPEFILE_PATH_CBERS4MUX
-            tiles_por_uf = CBERS4MUX_TILES_POR_UF
+            tile_grid_path = SHAPEFILE_PATH_BDC_MD
+            tiles_por_uf = BDC_MD_V2_TILES_POR_UF
             caminho_minio = "cbers"
             mission = "CBERS"
             sat = "CB4"
