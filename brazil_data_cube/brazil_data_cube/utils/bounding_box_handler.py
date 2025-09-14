@@ -123,7 +123,7 @@ class BoundingBoxHandler:
 
             if "CB" in satellite:
                 normalized_tile_id = tile_id.replace("_", "/")
-                tile_data = tile_grid[tile_grid["Name"] == normalized_tile_id]
+                tile_data = tile_grid[tile_grid["tile"] == normalized_tile_id]
             elif satellite == "S2":
                 tile_data = tile_grid[tile_grid["NAME"] == tile_id]
             else:  

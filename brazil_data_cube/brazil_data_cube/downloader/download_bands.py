@@ -8,7 +8,9 @@ class DownloadBands:
 
     def download_bands(
             self, image_assets, downloader,
-            prefix, satellite, minio_uploader, tile_id
+            prefix, satellite, minio_uploader,
+            caminho_minio, tile_id
+            
             ):
         """
         Função responsável pela chamada de download de cada banda,
@@ -17,49 +19,49 @@ class DownloadBands:
         if satellite == "S2":
             bands = {
                 'B04': 'red',
-                'B03': 'green',
-                'B02': 'blue',
-                'AOT': 'AOT',
-                'B01': 'B01',
-                'B05': 'B05',
-                'B06': 'B06',
-                'B07': 'B07',
-                'B08': 'B08',
-                'B09': 'B09',
-                'B11': 'B11',
-                'B12': 'B12',
-                'B8A': 'B8A',
-                'PVI': 'PVI',
-                'SCL': 'SCL',
-                'TCI': 'TCI',
-                'WVP': 'WVP',
-                'MTD_TL': 'MTD_TL'
+                # 'B03': 'green',
+                # 'B02': 'blue',
+                # 'AOT': 'AOT',
+                # 'B01': 'B01',
+                # 'B05': 'B05',
+                # 'B06': 'B06',
+                # 'B07': 'B07',
+                # 'B08': 'B08',
+                # 'B09': 'B09',
+                # 'B11': 'B11',
+                # 'B12': 'B12',
+                # 'B8A': 'B8A',
+                # 'PVI': 'PVI',
+                # 'SCL': 'SCL',
+                # 'TCI': 'TCI',
+                # 'WVP': 'WVP',
+                # 'MTD_TL': 'MTD_TL'
             }
         elif satellite == "LANDSAT":
             bands = {
                 'ang': 'ang',
-                'red': 'red',
-                'blue': 'blue',
-                'green': 'green',
-                'nir08': 'nir08',
-                'st_qa': 'st_qa',
-                'lwir11': 'lwir11',
-                'swir16': 'swir16',
-                'swir22': 'swir22',
-                'coastal': 'coastal',
-                'mtl.txt': 'mtl.txt',
-                'mtl.xml': 'mtx.xml',
-                'st_drad': 'st_drad',
-                'st_emis': 'st_emis',
-                'st_emsd': 'st_emsd',
-                'st_trad': 'st_trad',
-                'st_urad': 'st_urad',
-                'qa_pixel': 'qa_pixel',
-                'st_atran': 'st_atran',
-                'st_cdist': 'st_cdist',
-                'qa_radsat': 'qa_radsat',
-                'thumbnail': 'thumbnail',
-                'qa_aerosol': 'qa_aerosol'
+                # 'red': 'red',
+                # 'blue': 'blue',
+                # 'green': 'green',
+                # 'nir08': 'nir08',
+                # 'st_qa': 'st_qa',
+                # 'lwir11': 'lwir11',
+                # 'swir16': 'swir16',
+                # 'swir22': 'swir22',
+                # 'coastal': 'coastal',
+                # 'mtl.txt': 'mtl.txt',
+                # 'mtl.xml': 'mtx.xml',
+                # 'st_drad': 'st_drad',
+                # 'st_emis': 'st_emis',
+                # 'st_emsd': 'st_emsd',
+                # 'st_trad': 'st_trad',
+                # 'st_urad': 'st_urad',
+                # 'qa_pixel': 'qa_pixel',
+                # 'st_atran': 'st_atran',
+                # 'st_cdist': 'st_cdist',
+                # 'qa_radsat': 'qa_radsat',
+                # 'thumbnail': 'thumbnail',
+                # 'qa_aerosol': 'qa_aerosol'
             }
         elif satellite == "CBERS4-MUX-2M-1":
             bands = {
@@ -82,9 +84,9 @@ class DownloadBands:
             if band in image_assets:
                 filename = f"{prefix}_{suffix}.tif"
                 object_name = os.path.join(
-                    satellite.lower(), tile_id or 'ponto', filename
+                   caminho_minio,filename
                     ).replace("\\", "/")
-
+                print(object_name)
                 # Verifica se já existe no MinIO
                 if minio_uploader.object_exists(object_name, x=0):
                     continue

@@ -230,8 +230,10 @@ class ImageDownloader:
             print("Nenhuma imagem encontrada.")
             return
 
+        if tile_id == None:
+            tile_id = image_assets.properties.get('bdc:tiles', [''])[0]
+
         data_criacao = image_assets.properties.get('created','')
-        print(data_criacao)
 
         image_assets = image_assets.assets
 
@@ -254,17 +256,13 @@ class ImageDownloader:
             prefix,
             satellite,
             uploader,
+            caminho_minio,
             tile_id or 'ponto'
         )
 
         # Prefixo no bucket pode conter data ou nome da tile
         for path in downloaded_files.values():
 
-            # object_name = os.path.join(
-            #         satellite.lower(),
-            #         tile_id or 'ponto',
-            #         os.path.basename(path)
-            #     )
             object_name = os.path.join(
                     caminho_minio,
                     os.path.basename(path)
@@ -275,20 +273,20 @@ class ImageDownloader:
                 object_name=object_name
             )
 
-            # if uploader.object_exists(object_name, x=1):
-            #     self.remover_log.info(
-            #         f"Arquivo no diretório {path} será deletado localmente"
-            #         )
-            #     try:
-            #         os.remove(path)
-            #         self.remover_log.info(
-            #             f"Arquivo {path} deletado com sucesso."
-            #             )
-            #     except FileNotFoundError:
-            #         self.remover_log.warning(
-            #             f"Arquivo {path} não encontrado para deletar."
-            #             )
-            #     except Exception as e:
-            #         self.remover_log.error(
-            #             f"Erro ao deletar o arquivo {path}: {e}"
-            #             )
+            if uploader.object_exists(object_name, x=1):
+                self.remover_log.info(
+                    f"Arquivo no diretório {path} será deletado localmente"
+                    )
+                try:
+                    os.remove(path)
+                    self.remover_log.info(
+                        f"Arquivo {path} deletado com sucesso."
+                        )
+                except FileNotFoundError:
+                    self.remover_log.warning(
+                        f"Arquivo {path} não encontrado para deletar."
+                        )
+                except Exception as e:
+                    self.remover_log.error(
+                        f"Erro ao deletar o arquivo {path}: {e}"
+                        )

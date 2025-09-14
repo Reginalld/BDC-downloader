@@ -66,7 +66,6 @@ class GeometryUtils:
 
         # Geometrias
         tile_geom = tile_row.iloc[0].geometry
-        print(tile_geom)
         item_geom = shape(item.geometry)
         item_geom_reprojected = gpd.GeoSeries([item_geom], crs="EPSG:4326").to_crs(tiles_gdf.crs)
         intersection = tile_geom.intersection(item_geom_reprojected.iloc[0])

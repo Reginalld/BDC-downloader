@@ -170,6 +170,7 @@ class TileProcessor:
                 prefix,
                 satellite,
                 self.minio_uploader,
+                caminho_minio,
                 tile
             )
 
