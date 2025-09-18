@@ -19,6 +19,6 @@ rasterio==1.4.3
 click==8.0.4
 minio==7.2.15
 uvicorn[standard]
-gunicorn==21.2.0
+gunicorn==23.0.0
 asyncpg==0.30.0
 python-multipart==0.0.20
