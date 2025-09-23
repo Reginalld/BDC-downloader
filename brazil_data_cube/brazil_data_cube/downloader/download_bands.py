@@ -10,7 +10,6 @@ class DownloadBands:
             self, image_assets, downloader,
             prefix, satellite, minio_uploader,
             caminho_minio, tile_id
-            
             ):
         """
         Função responsável pela chamada de download de cada banda,
@@ -74,7 +73,7 @@ class DownloadBands:
                 'CMASK': 'CMASK',
                 'CLEAROB': 'CLEAROB',
                 'TOTALOB': 'TOTALOB',
-                'thumbnail': 'thumbnail',
+                'thumbnail': 'THUMBNAIL',
                 'PROVENANCE': 'PROVENANCE'
             }
 
@@ -84,7 +83,7 @@ class DownloadBands:
             if band in image_assets:
                 filename = f"{prefix}_{suffix}.tif"
                 object_name = os.path.join(
-                   caminho_minio,filename
+                   caminho_minio, filename
                     ).replace("\\", "/")
                 print(object_name)
                 # Verifica se já existe no MinIO

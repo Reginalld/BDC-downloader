@@ -1,6 +1,7 @@
 # brazil_data_cube/config.py
 import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 load_dotenv()  # Carrega as variáveis do .env
@@ -31,7 +32,7 @@ MINIO_BUCKET = os.getenv("MINIO_BUCKET")
 MINIO_SECURE = os.getenv("MINIO_SECURE", "false").lower() == "true"
 
 # Satélites suportados
-SAT_SUPPORTED = ['S2', 'LANDSAT','CBERS4-MUX-2M-1']
+SAT_SUPPORTED = ['S2', 'LANDSAT', 'CBERS4-MUX-2M-1']
 
 # Configurações padrão
 DEFAULT_RADIUS_KM = 10.0

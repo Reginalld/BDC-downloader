@@ -2,8 +2,8 @@ import logging
 from typing import Any
 
 import fiona
-import pandas as pd
 import geopandas as gpd
+import pandas as pd
 from shapely.geometry import shape
 
 
@@ -33,14 +33,18 @@ class GeometryUtils:
             # Usa o método de carregamento robusto para ler a grade sem erros
             with fiona.open(self.tile_grid_path, 'r') as collection:
                 custom_crs_wkt = collection.crs_wkt
-                records = [{'properties': rec['properties'], 'geometry': shape(rec['geometry'])} for rec in collection]
+                records = [{'properties': rec['properties'],
+                            'geometry': shape(rec['geometry'])}
+                           for rec in collection]
 
             attrs = pd.DataFrame([rec['properties'] for rec in records])
-            geoms = gpd.GeoSeries([rec['geometry'] for rec in records], crs=custom_crs_wkt)
+            geoms = gpd.GeoSeries([rec['geometry'] for rec in records],
+                                  crs=custom_crs_wkt)
             tiles_gdf = gpd.GeoDataFrame(attrs, geometry=geoms)
-            
+
         except Exception as e:
-            self.logger.error(f"Falha ao carregar a grade de tiles '{self.tile_grid_path}': {e}")
+            self.logger.error(f"Falha ao carregar a grade de tiles"
+                              f" '{self.tile_grid_path}': {e}")
             # Se a grade não pode ser lida, não podemos validar a geometria.
             return False
         tile_row = None
@@ -57,17 +61,20 @@ class GeometryUtils:
                 (tiles_gdf["PATH"] == path) & (tiles_gdf["ROW"] == row)
             ]
 
-        elif satellite == "CBERS4-MUX-2M-1":  
+        elif satellite == "CBERS4-MUX-2M-1":
             tile_row = tiles_gdf[tiles_gdf["tile"] == tile_id]
 
         if tile_row.empty:
-            self.logger.warning(f"Tile {tile_id} não encontrado na grade {satellite}.")
+            self.logger.warning(f"Tile {tile_id} não "
+                                f"encontrado na grade {satellite}.")
             return False
 
         # Geometrias
         tile_geom = tile_row.iloc[0].geometry
         item_geom = shape(item.geometry)
-        item_geom_reprojected = gpd.GeoSeries([item_geom], crs="EPSG:4326").to_crs(tiles_gdf.crs)
+        item_geom_reprojected = gpd.GeoSeries(
+            [item_geom], crs="EPSG:4326").to_crs(tiles_gdf.crs
+                                                 )
         intersection = tile_geom.intersection(item_geom_reprojected.iloc[0])
 
         percentage_geometry = min_geometry_cover / 100

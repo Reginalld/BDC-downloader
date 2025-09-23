@@ -4,10 +4,10 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from brazil_data_cube.config import (MAX_CLOUD_COVER_DEFAULT, SHAPEFILE_PATH,
-                                     TILES_PATH_LANDSAT, TILES_PATH_SENTINEL,
-                                     SAT_SUPPORTED, MIN_GEOMETRY_COVER_DEFAULT,
-                                     TILES_PATH_BDC_MD_V2)
+from brazil_data_cube.config import (MAX_CLOUD_COVER_DEFAULT,
+                                     MIN_GEOMETRY_COVER_DEFAULT, SAT_SUPPORTED,
+                                     SHAPEFILE_PATH, TILES_PATH_BDC_MD_V2,
+                                     TILES_PATH_LANDSAT, TILES_PATH_SENTINEL)
 
 with open(TILES_PATH_SENTINEL, "r", encoding="utf-8") as f:
     TILES_SENTINEL_POR_UF = json.load(f)
@@ -35,7 +35,8 @@ ALL_LANDSAT_TILES = {
                     for tile in tiles_list
                     }
 ALL_CBERS4_MUX_TILES = {
-                        tile for tiles_list in TILES_PATH_BDC_MD_V2_POR_UF.values()
+                        tile for tiles_list in
+                        TILES_PATH_BDC_MD_V2_POR_UF.values()
                         for tile in tiles_list
                        }
 ALL_VALID_TILES = ALL_SENTINEL_TILES | ALL_LANDSAT_TILES | ALL_CBERS4_MUX_TILES

@@ -3,18 +3,19 @@
 import json
 import logging
 import os
-import time
 from datetime import datetime
 from typing import Optional
 
 import requests
+from tqdm import tqdm
+
 from brazil_data_cube.config import (MINIO_ACCESS_KEY, MINIO_BUCKET,
                                      MINIO_ENDPOINT, MINIO_SECRET_KEY,
                                      MINIO_SECURE, REDUCTION_FACTOR,
-                                     SHAPEFILE_PATH_LANDSAT, SHAPEFILE_PATH_BDC_MD,
-                                     TILES_PATH_LANDSAT, TILES_PATH_SENTINEL,
-                                     TILES_PATH_BDC_MD_V2
-                                     )
+                                     SHAPEFILE_PATH_BDC_MD,
+                                     SHAPEFILE_PATH_LANDSAT,
+                                     TILES_PATH_BDC_MD_V2, TILES_PATH_LANDSAT,
+                                     TILES_PATH_SENTINEL)
 from brazil_data_cube.downloader.download_bands import DownloadBands
 from brazil_data_cube.downloader.fetcher import SatelliteImageFetcher
 from brazil_data_cube.minio.MinioUploader import MinioUploader
@@ -22,7 +23,6 @@ from brazil_data_cube.processors.tile_processor import TileProcessor
 from brazil_data_cube.utils.bdc_connection import BdcConnection
 from brazil_data_cube.utils.bounding_box_handler import BoundingBoxHandler
 from brazil_data_cube.utils.logger import ResultManager
-from tqdm import tqdm
 
 with open(TILES_PATH_LANDSAT, "r", encoding="utf-8") as f:
     LANDSAT_TILES_POR_UF = json.load(f)
@@ -32,7 +32,6 @@ with open(TILES_PATH_SENTINEL, "r", encoding="utf-8") as f:
 
 with open(TILES_PATH_BDC_MD_V2, "r", encoding="utf-8") as f:
     BDC_MD_V2_TILES_POR_UF = json.load(f)
-
 
 
 class ImageDownloader:
@@ -109,7 +108,7 @@ class ImageDownloader:
                         f"Falha definitiva no download de {filename}: {e}"
                     )
                     return None
-                
+
     def execute_download(
         self,
         satellite: str,
@@ -150,7 +149,6 @@ class ImageDownloader:
         mission = None
         sat = None
         level = None
-        y = None
 
         if "landsat" in satellite.lower():
             tile_grid_path = SHAPEFILE_PATH_LANDSAT
@@ -172,7 +170,6 @@ class ImageDownloader:
             mission = "CBERS"
             sat = "CB4"
             level = "SR"
-            y = 1
 
         if tile_id and tile_id.upper() in tiles_por_uf:
             uf = tile_id.upper()
@@ -230,10 +227,10 @@ class ImageDownloader:
             print("Nenhuma imagem encontrada.")
             return
 
-        if tile_id == None:
+        if tile_id is None:
             tile_id = image_assets.properties.get('bdc:tiles', [''])[0]
 
-        data_criacao = image_assets.properties.get('created','')
+        data_criacao = image_assets.properties.get('created', '')
 
         image_assets = image_assets.assets
 

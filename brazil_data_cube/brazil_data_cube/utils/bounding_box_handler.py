@@ -18,7 +18,8 @@ class BoundingBoxHandler:
         self, tile_grid: any
     ) -> List[float]:
         """
-        Calcula uma bounding box reduzida com base nas coordenadas de um bbox existente.
+        Calcula uma bounding box reduzida com
+        base nas coordenadas de um bbox existente.
         """
 
         tile_geometry = tile_grid.geometry.iloc[0]
@@ -40,13 +41,15 @@ class BoundingBoxHandler:
             f"[{new_minx}, {new_miny}, {new_maxx}, {new_maxy}]"
         )
         return [new_minx, new_miny, new_maxx, new_maxy]
-    
+
     def calculate_reduced_bbox_tile(
         self, minx: float, miny: float, maxx: float, maxy: float
     ) -> List[float]:
         """
-        Calcula uma bounding box reduzida com base nas coordenadas de um bbox existente.
-        -- REFATORADA: Agora aceita coordenadas diretas para uma melhor modularidade.
+        Calcula uma bounding box reduzida com base
+        nas coordenadas de um bbox existente.
+        -- REFATORADA: Agora aceita coordenadas diretas
+        para uma melhor modularidade.
         """
         center_x = (minx + maxx) / 2
         center_y = (miny + maxy) / 2
@@ -65,7 +68,6 @@ class BoundingBoxHandler:
         )
         return [new_minx, new_miny, new_maxx, new_maxy]
 
-
     @staticmethod
     def to_2d(geom):
         """Converte Polygon ou MultiPolygon com Z para 2D."""
@@ -79,7 +81,9 @@ class BoundingBoxHandler:
                 return Polygon(exterior, interiors)
             elif isinstance(geom, MultiPolygon):
                 # Recursively apply to_2d to each polygon in the multipolygon
-                return MultiPolygon([BoundingBoxHandler.to_2d(p) for p in geom.geoms])
+                return MultiPolygon(
+                    [BoundingBoxHandler.to_2d(p) for p in geom.geoms]
+                    )
         return geom
 
     def obter_bounding_box(
@@ -101,24 +105,35 @@ class BoundingBoxHandler:
                 raise FileNotFoundError(msg)
 
             try:
-                self.logger.info(f"Carregando grade com projeção customizada: {tile_grid_path}")
+                self.logger.info(f"Carregando grade com "
+                                 f"projeção customizada: {tile_grid_path}")
                 with fiona.open(tile_grid_path, 'r') as collection:
                     # Lê a definição da projeção (WKT) diretamente do arquivo
                     custom_crs_wkt = collection.crs_wkt
                     # Lê as geometrias e atributos
-                    records = [{'properties': rec['properties'], 'geometry': shape(rec['geometry'])} for rec in collection]
+                    records = [
+                        {'properties': rec['properties'],
+                         'geometry': shape(rec['geometry'])}
+                        for rec in collection
+                        ]
 
                 # Monta o GeoDataFrame manualmente para evitar o erro de CRS
                 attrs = pd.DataFrame([rec['properties'] for rec in records])
-                geoms = gpd.GeoSeries([rec['geometry'] for rec in records], crs=custom_crs_wkt)
+                geoms = gpd.GeoSeries([rec['geometry'] for rec in records],
+                                      crs=custom_crs_wkt)
                 tile_grid = gpd.GeoDataFrame(attrs, geometry=geoms)
-                self.logger.info(f"Grade '{os.path.basename(tile_grid_path)}' carregada com sucesso ({len(tile_grid)} tiles).")
+                self.logger.info(
+                    f"Grade '{os.path.basename(tile_grid_path)}' "
+                    f"carregada com sucesso ({len(tile_grid)} tiles)."
+                                 )
             except Exception as e:
-                self.logger.error(f"Falha ao carregar a grade de tiles '{tile_grid_path}': {e}")
+                self.logger.error(f"Falha ao carregar a "
+                                  f"grade de tiles '{tile_grid_path}': {e}")
                 raise  # Re-lança a exceção para parar a execução
-            
+
             if tile_grid.crs and tile_grid.crs.to_epsg() != 4326:
-                self.logger.info(f"Convertendo CRS de {tile_grid.crs} para EPSG:4326.")
+                self.logger.info(f"Convertendo CRS de "
+                                 f"{tile_grid.crs} para EPSG:4326.")
                 tile_grid = tile_grid.to_crs(epsg=4326)
 
             if "CB" in satellite:
@@ -126,13 +141,16 @@ class BoundingBoxHandler:
                 tile_data = tile_grid[tile_grid["tile"] == normalized_tile_id]
             elif satellite == "S2":
                 tile_data = tile_grid[tile_grid["NAME"] == tile_id]
-            else:  
+            else:
                 path = int(tile_id[:3])
                 row = int(tile_id[3:])
-                tile_data = tile_grid[(tile_grid["PATH"] == path) & (tile_grid["ROW"] == row)]
+                tile_data = tile_grid[
+                    (tile_grid["PATH"] == path) & (tile_grid["ROW"] == row)
+                    ]
 
             if tile_data.empty:
-                msg = f"Tile {tile_id} não encontrado na grade do satélite {satellite}."
+                msg = f"Tile {tile_id} não encontrado "
+                f"na grade do satélite {satellite}."
                 self.logger.error(msg)
                 raise ValueError(msg)
 
@@ -141,13 +159,15 @@ class BoundingBoxHandler:
             minx, miny, maxx, maxy = tile_geometry_2d.bounds
 
             if "CB" not in satellite:
-                main_bbox = self.calculate_reduced_bbox_tile(minx, miny, maxx, maxy)
+                main_bbox = self.calculate_reduced_bbox_tile(
+                    minx, miny, maxx, maxy)
             else:
                 main_bbox = [minx, miny, maxx, maxy]
 
             lat = (miny + maxy) / 2
             lon = (minx + maxx) / 2
-            bbox_width_km = (maxx - minx) * 111.32 * math.cos(math.radians(lat))
+            bbox_width_km = (maxx - minx) * \
+                111.32 * math.cos(math.radians(lat))
             bbox_height_km = (maxy - miny) * 111.32
             radius_km = max(bbox_width_km, bbox_height_km) / 2
 

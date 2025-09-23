@@ -3,10 +3,10 @@ from zoneinfo import ZoneInfo
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from jwt import PyJWTError, decode, encode
+from pwdlib import PasswordHash
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from jwt import encode, decode, PyJWTError
-from pwdlib import PasswordHash
 
 from brazil_data_cube.api.database import get_db
 from brazil_data_cube.api.models.models_db import User
