@@ -1,9 +1,9 @@
 # brazil_data_cube/api/database.py
 
+from brazil_data_cube.config import DATABASE_URL
+
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-
-DATABASE_URL = "postgresql+asyncpg://bdcuser:bdcpass@localhost:5431/bdcdb"
 
 engine = create_async_engine(DATABASE_URL, echo=True, future=True)
 

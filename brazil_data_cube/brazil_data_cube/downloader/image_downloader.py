@@ -254,7 +254,6 @@ class ImageDownloader:
             satellite,
             uploader,
             caminho_minio,
-            tile_id or 'ponto'
         )
 
         # Prefixo no bucket pode conter data ou nome da tile

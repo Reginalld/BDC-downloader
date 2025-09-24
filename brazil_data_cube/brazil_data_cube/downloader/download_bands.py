@@ -9,7 +9,7 @@ class DownloadBands:
     def download_bands(
             self, image_assets, downloader,
             prefix, satellite, minio_uploader,
-            caminho_minio, tile_id
+            caminho_minio
             ):
         """
         Função responsável pela chamada de download de cada banda,

@@ -183,8 +183,7 @@ class TileProcessor:
                 prefix,
                 satellite,
                 self.minio_uploader,
-                caminho_minio,
-                tile
+                caminho_minio
             )
 
             tile_mosaic_output = os.path.join(
