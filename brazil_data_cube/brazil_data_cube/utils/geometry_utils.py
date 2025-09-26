@@ -49,11 +49,11 @@ class GeometryUtils:
             return False
         tile_row = None
 
-        if satellite == "S2":
+        if "S2" in satellite.upper():
             # Sentinel-2 usa campo NAME
             tile_row = tiles_gdf[tiles_gdf["NAME"] == tile_id]
 
-        elif satellite == "LANDSAT":
+        elif "L8" in satellite.upper():
             # Landsat usa PATH e ROW (ex: "227067")
             path = int(tile_id[:3])
             row = int(tile_id[3:])
@@ -61,7 +61,7 @@ class GeometryUtils:
                 (tiles_gdf["PATH"] == path) & (tiles_gdf["ROW"] == row)
             ]
 
-        elif satellite == "CBERS4-MUX-2M-1":
+        elif "CB" in satellite.upper():
             tile_row = tiles_gdf[tiles_gdf["tile"] == tile_id]
 
         if tile_row.empty:

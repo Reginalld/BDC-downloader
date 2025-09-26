@@ -12,12 +12,11 @@ from tqdm import tqdm
 from brazil_data_cube.config import (MINIO_ACCESS_KEY, MINIO_BUCKET,
                                      MINIO_ENDPOINT, MINIO_SECRET_KEY,
                                      MINIO_SECURE, REDUCTION_FACTOR,
-                                     SHAPEFILE_PATH_BDC_MD,
-                                     SHAPEFILE_PATH_LANDSAT,
                                      TILES_PATH_BDC_MD_V2, TILES_PATH_LANDSAT,
                                      TILES_PATH_SENTINEL)
 from brazil_data_cube.downloader.download_bands import DownloadBands
 from brazil_data_cube.downloader.fetcher import SatelliteImageFetcher
+from brazil_data_cube.downloader.mission_info import MissionInfo
 from brazil_data_cube.minio.MinioUploader import MinioUploader
 from brazil_data_cube.processors.tile_processor import TileProcessor
 from brazil_data_cube.utils.bdc_connection import BdcConnection
@@ -64,8 +63,8 @@ class ImageDownloader:
 
         max_retries = 3
         backoff_factor = 2.0
-        attempt = 0
-        while attempt < max_retries:
+
+        for attempt in range(1, max_retries + 1):
             try:
                 response = requests.get(
                     asset.href,
@@ -140,149 +139,157 @@ class ImageDownloader:
             secure=MINIO_SECURE
         )
 
-        year_month = datetime.strptime(
-            start_date, "%Y-%m-%d"
-        ).strftime("%Y-%m")
-        self.output_dir = os.path.join(self.output_dir, satellite, year_month)
-        self.create_output()
-        caminho_minio = None
-        mission = None
-        sat = None
-        level = None
+        self.prepare_output_dir(satellite, start_date)
 
-        if "landsat" in satellite.lower():
-            tile_grid_path = SHAPEFILE_PATH_LANDSAT
-            tiles_por_uf = LANDSAT_TILES_POR_UF
-            caminho_minio = "landsat"
-            mission = "LANDSAT"
-            sat = "L9"
-            level = "LEVEL2"
-        elif "s2" in satellite.lower() or "sentinel" in satellite.lower():
-            tiles_por_uf = SENTINEL_TILES_POR_UF
-            caminho_minio = "s2"
-            mission = "SENTINEL2"
-            sat = "S2A"
-            level = "L2A"
-        elif "cb" in satellite.lower():
-            tile_grid_path = SHAPEFILE_PATH_BDC_MD
-            tiles_por_uf = BDC_MD_V2_TILES_POR_UF
-            caminho_minio = "cbers"
-            mission = "CBERS"
-            sat = "CB4"
-            level = "SR"
+        mission_info = MissionInfo(satellite)
 
-        if tile_id and tile_id.upper() in tiles_por_uf:
-            uf = tile_id.upper()
-            self.logger.info(f"Iniciando tiles do estado: {uf}")
-
-            tile_list = tiles_por_uf.get(uf)
-            if not tile_list:
-                self.logger.warning(
-                    f"Nenhum tile encontrado para {uf} com {satellite}"
-                )
-                raise ValueError(
-                    f"Nenhum tile encontrado para {uf} com {satellite}"
-                )
-
-            TileProcessor(
-                self.logger,
-                self.remover_log,
+        if tile_id and tile_id.upper() in mission_info.tiles_por_uf:
+            self.process_tiles_por_estado(
+                tile_id.upper(),
+                mission_info,
                 fetcher,
-                self,
-                self.output_dir,
-                tile_grid_path,
-                max_cloud_cover,
                 uploader,
-                min_geometry_cover
-            ).process_tile_list(
-                tile_list, satellite, start_date, end_date
+                start_date,
+                end_date,
+                max_cloud_cover,
+                min_geometry_cover,
             )
             return
 
-        self.logger.info(tile_id)
+        self.process_single_tile(
+            tile_id,
+            lat,
+            lon,
+            radius_km,
+            bbox_handler,
+            fetcher,
+            uploader,
+            mission_info,
+            mission_info.tile_grid_path,
+            start_date,
+            end_date,
+            max_cloud_cover,
+            min_geometry_cover,
+        )
 
-        main_bbox, lat_final, lon_final, radius_final = (
-            bbox_handler.obter_bounding_box(
-                tile_id,
-                lat,
-                lon,
-                radius_km,
-                tile_grid_path,
-                satellite
+    def prepare_output_dir(self, satellite: str, start_date: str) -> None:
+        """Cria diretório de saída baseado em satélite e data."""
+        year_month = datetime.strptime(
+            start_date, "%Y-%m-%d").strftime("%Y-%m")
+        self.output_dir = os.path.join(
+            self.output_dir, satellite, year_month
             )
+        self.create_output()
+
+    def process_tiles_por_estado(
+        self,
+        uf: str,
+        mission_info: dict,
+        fetcher: SatelliteImageFetcher,
+        uploader: MinioUploader,
+        start_date: str,
+        end_date: str,
+        max_cloud_cover: float,
+        min_geometry_cover: float,
+    ) -> None:
+        """Processa lista de tiles de um estado (UF)"""
+        tile_list = mission_info.tiles_por_uf.get(uf)
+        if not tile_list:
+            msg = f"Nenhum tile encontrado para {uf} ({mission_info.mission})"
+            self.logger.error(msg)
+            raise ValueError(msg)
+
+        self.logger.info(f"Iniciando tiles do estado {uf}...")
+        TileProcessor(
+            self.logger,
+            self.remover_log,
+            fetcher,
+            self,
+            self.output_dir,
+            mission_info.tile_grid_path,
+            max_cloud_cover,
+            uploader,
+            min_geometry_cover,
+        ).process_tile_list(tile_list, mission_info.sat, start_date, end_date)
+
+    def process_single_tile(
+        self,
+        tile_id: Optional[str],
+        lat: Optional[float],
+        lon: Optional[float],
+        radius_km: Optional[float],
+        bbox_handler: BoundingBoxHandler,
+        fetcher: SatelliteImageFetcher,
+        uploader: MinioUploader,
+        mission_info: dict,
+        tile_grid_path: str,
+        start_date: str,
+        end_date: str,
+        max_cloud_cover: float,
+        min_geometry_cover: float,
+    ) -> None:
+        """Processa o fluxo para um único tile (ou bbox)."""
+        bbox, lat, lon, _ = bbox_handler.obter_bounding_box(
+            tile_id, lat, lon, radius_km,
+            mission_info.tile_grid_path, mission_info.sat
         )
 
         image_assets = fetcher.fetch_image(
-            satellite,
-            main_bbox,
+            mission_info.sat,
+            bbox,
             start_date,
             end_date,
             max_cloud_cover,
             tile_grid_path,
             min_geometry_cover,
-            tile_id or ""
+            tile_id or "",
         )
-
         if not image_assets:
-            print("Nenhuma imagem encontrada.")
+            self.logger.warning("Nenhuma imagem encontrada.")
             return
 
-        if tile_id is None:
-            tile_id = image_assets.properties.get('bdc:tiles', [''])[0]
+        if not tile_id:
+            tile_id = image_assets.properties.get("bdc:tiles", [""])[0]
 
-        data_criacao = image_assets.properties.get('created', '')
-
-        image_assets = image_assets.assets
-
-        if data_criacao:
-            # Converte de ISO para datetime
-            dt = datetime.fromisoformat(data_criacao.replace("Z", "+00:00"))
-            # Formata para o padrão YYYYMMDD
-            data_formatada = dt.strftime("%Y%m%d")
-        else:
-            data_formatada = "00000000"  # fallback
-
-        prefix = (
-                f"{sat}_{mission}_{tile_id}"
-                f"_{data_formatada}_{level}"
-            )
-
-        downloaded_files = DownloadBands(self.logger).download_bands(
-            image_assets,
-            self,
-            prefix,
-            satellite,
-            uploader,
-            caminho_minio,
+        # Data de criação
+        data_criacao = image_assets.properties.get("created", "")
+        data_formatada = (
+            datetime.fromisoformat(
+                data_criacao.replace("Z", "+00:00")).strftime("%Y%m%d")
+            if data_criacao
+            else "00000000"
         )
 
-        # Prefixo no bucket pode conter data ou nome da tile
-        for path in downloaded_files.values():
+        prefix = f"{mission_info.sat}_{mission_info.mission}_" \
+            f"{tile_id}_{data_formatada}_{mission_info.level}"
 
-            object_name = os.path.join(
-                    caminho_minio,
-                    os.path.basename(path)
-                )
+        download_files = DownloadBands(self.logger).download_bands(
+            image_assets.assets,
+            self,
+            prefix,
+            mission_info.sat,
+            uploader,
+            mission_info.bucket_prefix,
+        )
 
-            uploader.upload_file(
-                path,
-                object_name=object_name
-            )
+        for path in download_files.values():
+            self.upload_and_cleanup(uploader, path, mission_info.bucket_prefix)
 
-            if uploader.object_exists(object_name, x=1):
-                self.remover_log.info(
-                    f"Arquivo no diretório {path} será deletado localmente"
-                    )
-                try:
-                    os.remove(path)
-                    self.remover_log.info(
-                        f"Arquivo {path} deletado com sucesso."
-                        )
-                except FileNotFoundError:
-                    self.remover_log.warning(
-                        f"Arquivo {path} não encontrado para deletar."
-                        )
-                except Exception as e:
-                    self.remover_log.error(
-                        f"Erro ao deletar o arquivo {path}: {e}"
-                        )
+    def upload_and_cleanup(
+            self, uploader: MinioUploader, filepath: str, bucket_prefix: str
+            ) -> None:
+        """Faz upload para MinIO e remove o
+        arquivo local se já existir no bucket."""
+        object_name = os.path.join(bucket_prefix, os.path.basename(filepath))
+        uploader.upload_file(filepath, object_name=object_name)
+
+        if uploader.object_exists(object_name, x=1):
+            self.remover_log.info(f"Removendo local: {filepath}")
+            try:
+                os.remove(filepath)
+                self.remover_log.info(f"Arquivo {filepath} "
+                                      "deletado com sucesso.")
+            except FileNotFoundError:
+                self.remover_log.warning(f"Arquivo {filepath} não encontrado.")
+            except Exception as e:
+                self.remover_log.error(f"Erro ao deletar {filepath}: {e}")

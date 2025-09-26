@@ -9,7 +9,6 @@ from shapely.geometry import shape
 
 from brazil_data_cube.downloader.download_bands import DownloadBands
 
-from ..config import SAT_SUPPORTED
 from ..utils.bounding_box_handler import BoundingBoxHandler
 from ..utils.logger import ResultManager
 
@@ -78,13 +77,6 @@ class TileProcessor:
         """
         Processa todos os tiles do Paraná, baixa e monta o mosaico final.
         """
-        if satellite not in SAT_SUPPORTED:
-            self.logger.error(f"Satélite '{satellite}' não é suportado.")
-            self.result_manager.log_error_csv(
-                "Paraná", satellite, "Satélite não suportado"
-            )
-            return
-
         tile_grid_master = self._load_grid_robustly()
         if tile_grid_master is None:
             self.logger.error("Não foi possível carregar a grade "
@@ -101,13 +93,13 @@ class TileProcessor:
             start = time.perf_counter()
             self.logger.info(f"Processando tile {tile}...")
 
-            if satellite == "S2":
+            if "S2" in satellite.upper():
                 tile_grid = tile_grid_master[tile_grid_master["NAME"] == tile]
                 caminho_minio = "s2"
                 mission = "SENTINEL2"
                 sat = "S2A"
                 level = "L2A"
-            elif "CB" in satellite:
+            elif "CB" in satellite.upper():
                 normalized_tile_id = tile.replace("_", "/")
                 tile_grid = tile_grid_master[
                     tile_grid_master["tile"] == normalized_tile_id
@@ -116,7 +108,7 @@ class TileProcessor:
                 mission = "CBERS"
                 sat = "CB4"
                 level = "SR"
-            else:
+            elif "L8" in satellite.upper():
                 path = int(tile[:3])
                 row = int(tile[3:])
                 tile_grid = tile_grid_master[
@@ -124,7 +116,7 @@ class TileProcessor:
                     & (tile_grid_master["ROW"] == row)
                 ]
                 mission = "LANDSAT"
-                sat = "L9"
+                sat = "L8"
                 level = "LEVEL2"
                 caminho_minio = "landsat"
 

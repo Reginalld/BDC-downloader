@@ -33,11 +33,11 @@ class SatelliteImageFetcher:
             Optional[Dict]: Assets da imagem ou None se não encontrar
         """
         try:
-            if satellite == "S2":
+            if "S2" in satellite.upper():
                 satellite_fetcher = "S2_L2A-1"
-            elif satellite == "LANDSAT":
+            elif "L8" in satellite.upper():
                 satellite_fetcher = "landsat-2"
-            elif satellite == "CBERS4-MUX-2M-1":
+            elif "CB" in satellite.upper():
                 satellite_fetcher = "CBERS4-MUX-2M-1"
 
             self.logger.info(f"Buscando imagens do {satellite}...")

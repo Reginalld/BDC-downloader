@@ -136,10 +136,10 @@ class BoundingBoxHandler:
                                  f"{tile_grid.crs} para EPSG:4326.")
                 tile_grid = tile_grid.to_crs(epsg=4326)
 
-            if "CB" in satellite:
+            if "CB" in satellite.upper():
                 normalized_tile_id = tile_id.replace("_", "/")
                 tile_data = tile_grid[tile_grid["tile"] == normalized_tile_id]
-            elif satellite == "S2":
+            elif "S2" in satellite.upper():
                 tile_data = tile_grid[tile_grid["NAME"] == tile_id]
             else:
                 path = int(tile_id[:3])
