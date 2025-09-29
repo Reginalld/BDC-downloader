@@ -1,8 +1,10 @@
 import logging
 import math
-import pytest
+
 import geopandas as gpd
+import pytest
 from shapely.geometry import Polygon
+
 from brazil_data_cube.utils.bounding_box_handler import BoundingBoxHandler
 
 
