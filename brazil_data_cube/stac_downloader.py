@@ -1,8 +1,7 @@
 import typer
 
 from brazil_data_cube.config import (IMAGES_DIR, MAX_CLOUD_COVER_DEFAULT,
-                                     MIN_GEOMETRY_COVER_DEFAULT,
-                                     SHAPEFILE_PATH)
+                                     MIN_GEOMETRY_COVER_DEFAULT)
 from brazil_data_cube.downloader.image_downloader import ImageDownloader
 from brazil_data_cube.utils.logger import ResultManager
 
@@ -35,8 +34,6 @@ def main(
         IMAGES_DIR, help="Diretório de saída para salvar as imagens"
         ),
 
-    tile_grid_path: str = typer.Option(SHAPEFILE_PATH),
-
     max_cloud_cover: float = typer.Option(
         MAX_CLOUD_COVER_DEFAULT, help="Máximo de nuvens"
         ),
@@ -57,8 +54,8 @@ def main(
     image_downloader = ImageDownloader(output_dir)
     image_downloader.execute_download(
         satellite, lat, lon, tile_id, radius_km,
-        start_date, end_date, tile_grid_path,
-        max_cloud_cover, min_geometry_cover
+        start_date, end_date, max_cloud_cover,
+        min_geometry_cover
     )
 
 

@@ -4,3 +4,5 @@ log/
 imagens/
 .scannerwork/
 scanner-report/
+.coverage
+coverage.xml

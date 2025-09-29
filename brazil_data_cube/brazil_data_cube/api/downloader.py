@@ -34,7 +34,6 @@ def start_download(request: DownloadRequest, exec_id: str):
             radius_km=request.radius_km,
             start_date=request.start_date,
             end_date=request.end_date,
-            tile_grid_path=request.tile_grid_path,
             max_cloud_cover=request.max_cloud_cover,
             min_geometry_cover=request.min_geometry_cover
         )

@@ -6,8 +6,8 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from brazil_data_cube.config import (MAX_CLOUD_COVER_DEFAULT,
                                      MIN_GEOMETRY_COVER_DEFAULT, SAT_SUPPORTED,
-                                     SHAPEFILE_PATH, TILES_PATH_BDC_MD_V2,
-                                     TILES_PATH_LANDSAT, TILES_PATH_SENTINEL)
+                                     TILES_PATH_BDC_MD_V2, TILES_PATH_LANDSAT,
+                                     TILES_PATH_SENTINEL)
 
 with open(TILES_PATH_SENTINEL, "r", encoding="utf-8") as f:
     TILES_SENTINEL_POR_UF = json.load(f)
@@ -55,7 +55,6 @@ class DownloadRequest(BaseModel):
     radius_km: Optional[float] = Field(10.0, ge=0.1, le=100.0)
     start_date: str
     end_date: str
-    tile_grid_path: str = SHAPEFILE_PATH
     max_cloud_cover: float = MAX_CLOUD_COVER_DEFAULT
     min_geometry_cover: float = MIN_GEOMETRY_COVER_DEFAULT
 

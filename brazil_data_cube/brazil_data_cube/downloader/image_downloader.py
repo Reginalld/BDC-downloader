@@ -117,7 +117,6 @@ class ImageDownloader:
         radius_km: Optional[float],
         start_date: str,
         end_date: str,
-        tile_grid_path: str,
         max_cloud_cover: float,
         min_geometry_cover: float
     ) -> None:
@@ -184,7 +183,7 @@ class ImageDownloader:
     def process_tiles_por_estado(
         self,
         uf: str,
-        mission_info: dict,
+        mission_info: MissionInfo,
         fetcher: SatelliteImageFetcher,
         uploader: MinioUploader,
         start_date: str,
@@ -221,7 +220,7 @@ class ImageDownloader:
         bbox_handler: BoundingBoxHandler,
         fetcher: SatelliteImageFetcher,
         uploader: MinioUploader,
-        mission_info: dict,
+        mission_info: MissionInfo,
         tile_grid_path: str,
         start_date: str,
         end_date: str,

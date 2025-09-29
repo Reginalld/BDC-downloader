@@ -102,11 +102,8 @@ class SatelliteImageFetcher:
 
                 # Tenta extrair o ID do tile usando os
                 # properties do BDC da primeira imagem
-                if satellite == "S2":
-                    tile = items[0].properties.get('tileId', '')
-                else:
-                    tile = items[0].properties.get('bdc:tiles', '')
-                    tile = tile[0]
+                tile = items[0].properties.get('bdc:tiles', '')
+                tile = tile[0]
 
                 geometry_utils = GeometryUtils(self.logger, tile_grid_path)
                 # Mesmo sem o tile informado, tenta validar
