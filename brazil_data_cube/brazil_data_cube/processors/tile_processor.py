@@ -38,7 +38,7 @@ class TileProcessor:
         self.minio_uploader = minio_uploader
         self.min_geometry_cover = min_geometry_cover
 
-    def _load_grid_robustly(self):
+    def load_grid_robustly(self):
         """
         Carrega a grade de tiles de forma robusta,
         lidando com projeções customizadas
@@ -67,73 +67,82 @@ class TileProcessor:
                               f"carregar a grade de tiles: {e}")
             return None
 
-    def process_tile_list(
-        self,
-        tiles_list: any,
-        satellite: str,
-        start_date: str,
-        end_date: str
-    ) -> None:
-        """
-        Processa todos os tiles do Paraná, baixa e monta o mosaico final.
-        """
-        tile_grid_master = self._load_grid_robustly()
+    def select_tile_grid(self, tile_grid_master, tile, satellite):
+        """Seleciona o tile correspondente no shapefile"""
+        if "S2" in satellite.upper():
+            return tile_grid_master[
+                tile_grid_master["NAME"] == tile
+                ], "s2", "SENTINEL2", "S2A", "L2A"
+
+        elif "CB" in satellite.upper():
+            normalized_tile_id = tile.replace("_", "/")
+            grid = tile_grid_master[
+                tile_grid_master["tile"] == normalized_tile_id]
+            return grid, "cbers", "CBERS", "CB4", "SR"
+
+        elif "L8" in satellite.upper():
+            path, row = int(tile[:3]), int(tile[3:])
+            grid = tile_grid_master[
+                (tile_grid_master["PATH"] == path)
+                & (tile_grid_master["ROW"] == row)
+            ]
+            return grid, "landsat", "LANDSAT", "L8", "LEVEL2"
+
+        return gpd.GeoDataFrame(), None, None, None, None
+
+    def build_prefix(self, sat, mission, tile, data_criacao, level):
+        """Monta prefixo para nome do arquivo."""
+        if data_criacao:
+            dt = datetime.fromisoformat(data_criacao.replace("Z", "+00:00"))
+            data_formatada = dt.strftime("%Y%m%d")
+        else:
+            data_formatada = "00000000"
+        return f"{sat}_{mission}_{tile}_{data_formatada}_{level}"
+
+    def upload_and_cleanup(self, downloaded_files, minio_prefix):
+        """Faz upload para o MinIO e remove arquivos locais."""
+        for path in downloaded_files.values():
+            object_name = os.path.join(minio_prefix, os.path.basename(path))
+            self.minio_uploader.upload_file(path, object_name=object_name)
+
+            if self.minio_uploader.object_exists(object_name, x=1):
+                self.remover_loger.info(f"Removendo {path} do disco local")
+                try:
+                    os.remove(path)
+                except FileNotFoundError:
+                    self.remover_loger.warning(
+                        f"{path} não encontrado para deletar.")
+                except Exception as e:
+                    self.remover_loger.error(f"Erro ao deletar {path}: {e}")
+
+    def process_tile_list(self, tiles_list, satellite, start_date, end_date):
+        """Processa todos os tiles fornecidos."""
+        tile_grid_master = self.load_grid_robustly()
         if tile_grid_master is None:
-            self.logger.error("Não foi possível carregar a grade "
-                              "de tiles. Abortando processo.")
+            self.logger.error("Abortande: grade de tiles não carregada.")
             return
 
-        tile_mosaic_files = []
         results_time_estimated = []
-        tile_list = tiles_list
-        caminho_minio = None
+        tile_mosaic_files = []
 
-        for tile in tile_list:
-            logging.info(tile)
+        for tile in tiles_list:
             start = time.perf_counter()
             self.logger.info(f"Processando tile {tile}...")
 
-            if "S2" in satellite.upper():
-                tile_grid = tile_grid_master[tile_grid_master["NAME"] == tile]
-                caminho_minio = "s2"
-                mission = "SENTINEL2"
-                sat = "S2A"
-                level = "L2A"
-            elif "CB" in satellite.upper():
-                normalized_tile_id = tile.replace("_", "/")
-                tile_grid = tile_grid_master[
-                    tile_grid_master["tile"] == normalized_tile_id
-                    ]
-                caminho_minio = "cbers"
-                mission = "CBERS"
-                sat = "CB4"
-                level = "SR"
-            elif "L8" in satellite.upper():
-                path = int(tile[:3])
-                row = int(tile[3:])
-                tile_grid = tile_grid_master[
-                    (tile_grid_master["PATH"] == path)
-                    & (tile_grid_master["ROW"] == row)
-                ]
-                mission = "LANDSAT"
-                sat = "L8"
-                level = "LEVEL2"
-                caminho_minio = "landsat"
+            # Seleciona grade e infos da missão
+            tile_grid, minio_prefix, mission, sat, level = self. \
+                select_tile_grid(tile_grid_master, tile, satellite)
 
             if tile_grid.empty:
-                self.logger.warning(
-                    f"Tile {tile} não encontrado "
-                    "na grade Sentinel-2. Pulando..."
-                )
+                self.logger.warning(f"Tile {tile} não encontrada. Pulando...")
                 continue
 
-            self.logger.info("Reprojetando a geometria do tile para "
-                             "EPSG:4326 antes de calcular o bbox da API...")
+            # Converte CRS antes de calcular bbox
             tile_grid_wgs84 = tile_grid.to_crs("EPSG:4326")
-
             main_bbox = self.bbox_handler.calculate_reduced_bbox(
                 tile_grid_wgs84)
 
+            # Busca imagens
             image_assets = self.fetcher.fetch_image(
                 satellite,
                 main_bbox,
@@ -142,85 +151,45 @@ class TileProcessor:
                 self.max_cloud_cover,
                 self.tile_grid_path,
                 self.min_geometry_cover,
-                tile
+                tile,
             )
-
             if not image_assets:
-                self.logger.warning(
-                    f"Nenhuma imagem encontrada para o tile {tile}."
-                )
+                self.logger.warning(f"Nenhuma imagem encontrada para {tile}.")
                 continue
 
-            data_criacao = image_assets.properties.get('created', '')
+            # Monta prefixo com data
+            prefix = self.build_prefix(
+                sat,
+                mission,
+                tile,
+                image_assets.properties.get("created", ""),
+                level
+            )
 
-            if data_criacao:
-                # Converte de ISO para datetime
-                dt = datetime.fromisoformat(
-                    data_criacao.replace("Z", "+00:00"))
-                # Formata para o padrão YYYYMMDD
-                data_formatada = dt.strftime("%Y%m%d")
-            else:
-                data_formatada = "00000000"  # fallback
-
-            prefix = (
-                    f"{sat}_{mission}_{tile}"
-                    f"_{data_formatada}_{level}"
-                )
-            image_assets = image_assets.assets
-
-            self.logger.info("Baixando e processando imagens...")
+            # Download + upload
+            self.logger.info("Baixando imagens...")
             downloaded_files = DownloadBands(self.logger).download_bands(
-                image_assets,
+                image_assets.assets,
                 self.downloader,
                 prefix,
                 satellite,
                 self.minio_uploader,
-                caminho_minio
+                minio_prefix
             )
+            self.upload_and_cleanup(downloaded_files, minio_prefix)
 
+            # Prepara resultados
             tile_mosaic_output = os.path.join(
                 self.output_dir,
                 f"{satellite}_{tile}_{start_date}_{end_date}_RGB.tif"
             )
-
-            for path in downloaded_files.values():
-
-                object_name = os.path.join(
-                    caminho_minio,
-                    os.path.basename(path)
-                )
-
-                self.minio_uploader.upload_file(
-                    path,
-                    object_name=object_name
-                )
-
-                if self.minio_uploader.object_exists(object_name, x=1):
-                    self.remover_loger.info(
-                        f"Arquivo no diretório {path} será deletado localmente"
-                        )
-                    try:
-                        os.remove(path)
-                        self.remover_loger.info(
-                            f"Arquivo {path} deletado com sucesso."
-                            )
-                    except FileNotFoundError:
-                        self.remover_loger.warning(
-                            f"Arquivo {path} não encontrado para deletar."
-                            )
-                    except Exception as e:
-                        self.remover_loger.error(
-                            f"Erro ao deletar o arquivo {path}: {e}")
-
             tile_mosaic_files.append(tile_mosaic_output)
+
             duration = time.perf_counter() - start
             results_time_estimated.append(
-                {"Tile_id": tile, "duration_sec": duration}
-            )
+                {"Tile_id": tile, "duration_sec": duration})
 
+        # Finaliza
         self.result_manager.manage_results(
-            tile_mosaic_files,
-            results_time_estimated,
-            satellite,
-            start_date
+            tile_mosaic_files, results_time_estimated, satellite, start_date
         )
