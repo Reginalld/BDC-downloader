@@ -113,3 +113,4 @@ def test_upload_and_cleanup_file_not_exists(downloader, tmp_path):
     # verifica se registrou warning que arquivo não existe
     mock_warning.assert_called_with(f"Arquivo {fake_file} não encontrado.")
 
+    mock_info
