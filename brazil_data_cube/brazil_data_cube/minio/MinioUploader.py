@@ -40,10 +40,6 @@ class MinioUploader:
 
         while attempt < max_retries:
             try:
-                # if not self.client.bucket_exists(self.bucket_name):
-                #     self.client.make_bucket(self.bucket_name)
-                #     self.logger.info(f"Bucket criado: {self.bucket_name}")
-
                 self.logger.debug(
                     "Tentativa %d de upload para: %s", attempt + 1, object_name
                 )

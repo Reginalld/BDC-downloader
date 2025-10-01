@@ -1,9 +1,8 @@
-import os
-import pytest
 import logging
 from unittest.mock import MagicMock, patch
-from datetime import datetime
+
 import geopandas as gpd
+import pytest
 from shapely.geometry import Polygon
 
 from brazil_data_cube.processors.tile_processor import TileProcessor
@@ -78,7 +77,8 @@ def test_upload_and_cleanup_file_not_found(processor, fake_uploader):
 
 def test_select_tile_grid_sentinel(processor):
     df = gpd.GeoDataFrame({"NAME": ["21LVC"]}, geometry=[Polygon()])
-    grid, minio_prefix, mission, sat, level = processor.select_tile_grid(df, "21LVC", "S2")
+    grid, minio_prefix, mission, sat, level = processor.select_tile_grid(
+        df, "21LVC", "S2")
     assert not grid.empty
     assert mission == "SENTINEL2"
     assert sat == "S2A"
@@ -86,7 +86,8 @@ def test_select_tile_grid_sentinel(processor):
 
 def test_select_tile_grid_cbers(processor):
     df = gpd.GeoDataFrame({"tile": ["001/002"]}, geometry=[Polygon()])
-    grid, minio_prefix, mission, sat, level = processor.select_tile_grid(df, "001_002", "CBERS")
+    grid, minio_prefix, mission, sat, level = processor.select_tile_grid(
+        df, "001_002", "CBERS")
     assert not grid.empty
     assert mission == "CBERS"
     assert sat == "CB4"
@@ -94,7 +95,8 @@ def test_select_tile_grid_cbers(processor):
 
 def test_select_tile_grid_landsat(processor):
     df = gpd.GeoDataFrame({"PATH": [1], "ROW": [2]}, geometry=[Polygon()])
-    grid, minio_prefix, mission, sat, level = processor.select_tile_grid(df, "001002", "L8")
+    grid, minio_prefix, mission, sat, level = processor.select_tile_grid(
+        df, "001002", "L8")
     assert not grid.empty
     assert mission == "LANDSAT"
     assert sat == "L8"
@@ -102,25 +104,33 @@ def test_select_tile_grid_landsat(processor):
 
 def test_process_tile_list_no_grid(processor):
     with patch.object(processor, "load_grid_robustly", return_value=None):
-        processor.process_tile_list(["21LVC"], "S2", "2025-09-01", "2025-09-10")
+        processor.process_tile_list(
+            ["21LVC"], "S2", "2025-09-01", "2025-09-10")
         # como não carregou, não deve chamar fetcher
         processor.fetcher.fetch_image.assert_not_called()
 
 
 def test_process_tile_list_with_valid_tile(processor, tmp_path):
     # mock grid com tile válido
-    df = gpd.GeoDataFrame({"NAME": ["21LVC"]}, geometry=[Polygon([(0,0),(1,0),(1,1),(0,1)])], crs="EPSG:4326")
+    df = gpd.GeoDataFrame(
+        {"NAME": ["21LVC"]}, geometry=[
+            Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])], crs="EPSG:4326"
+        )
 
     with patch.object(processor, "load_grid_robustly", return_value=df), \
-         patch("brazil_data_cube.processors.tile_processor.DownloadBands") as mock_download:
-        mock_download.return_value.download_bands.return_value = {"B4": str(tmp_path / "file.tif")}
+         patch(
+             "brazil_data_cube.processors.tile_processor.DownloadBands"
+             ) as mock_download:
+        mock_download.return_value.download_bands.return_value = {
+            "B4": str(tmp_path / "file.tif")}
 
         processor.fetcher.fetch_image.return_value = MagicMock(
             properties={"created": "2025-09-20T00:00:00Z"},
             assets={"B4": MagicMock()}
         )
 
-        processor.process_tile_list(["21LVC"], "S2", "2025-09-01", "2025-09-10")
+        processor.process_tile_list(
+            ["21LVC"], "S2", "2025-09-01", "2025-09-10")
 
         processor.fetcher.fetch_image.assert_called_once()
         mock_download.return_value.download_bands.assert_called_once()
