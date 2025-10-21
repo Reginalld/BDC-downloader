@@ -162,7 +162,7 @@ class TileProcessor:
                 sat,
                 mission,
                 tile,
-                image_assets.properties.get("created", ""),
+                image_assets.properties.get("start_datetime", ""),
                 level
             )
 

@@ -251,7 +251,7 @@ class ImageDownloader:
             tile_id = image_assets.properties.get("bdc:tiles", [""])[0]
 
         # Data de criação
-        data_criacao = image_assets.properties.get("created", "")
+        data_criacao = image_assets.properties.get("start_datetime", "")
         data_formatada = (
             datetime.fromisoformat(
                 data_criacao.replace("Z", "+00:00")).strftime("%Y%m%d")
