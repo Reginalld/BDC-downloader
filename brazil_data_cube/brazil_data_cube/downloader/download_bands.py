@@ -1,10 +1,113 @@
-import logging
 import os
+import logging
+from urllib.parse import urlparse
+import requests
+from tqdm import tqdm
+from typing import Dict, Optional
 
 
 class DownloadBands:
     def __init__(self, logger: logging.Logger):
         self.logger = logger
+
+    def download_with_resume(self, asset, filename: str, output_dir: str, chunk_size: int = 1024*1024, timeout: int = 60) -> str:
+       """
+       Download com suporte a resume, lógica de status code corrigida e
+       verificação de tamanho total primeiro.
+       """
+       os.makedirs(output_dir, exist_ok=True)
+       output_file = os.path.join(output_dir, filename)
+       url = asset.href if hasattr(asset, "href") else asset
+
+
+       total_size = 0
+      
+       try:
+           initial_response = requests.get(url, stream=True, timeout=timeout)
+           initial_response.raise_for_status() # Garante que o link é válido
+          
+           total_size = int(initial_response.headers.get('content-length', 0))
+           initial_response.close() # Fecha a conexão, não baixamos nada ainda
+          
+           if total_size == 0:
+               self.logger.warning(f"Servidor não retornou 'content-length' para {filename}. O resume pode falhar.")
+
+
+       except requests.exceptions.RequestException as e:
+           self.logger.error(f"Erro fatal ao tentar obter tamanho do arquivo {url}: {e}")
+           raise
+
+
+       while True:
+           existing_size = os.path.getsize(output_file) if os.path.exists(output_file) else 0
+
+
+           if total_size > 0 and existing_size >= total_size:
+               self.logger.info(f"Arquivo {filename} já está completo ({existing_size}/{total_size} bytes). Pulando.")
+              
+               if existing_size > total_size:
+                    self.logger.error(f"CORRUPÇÃO DETECTADA: Arquivo local {filename} ({existing_size}) é MAIOR que o esperado ({total_size}). Deletando e baixando novamente.")
+                    os.remove(output_file)
+                    existing_size = 0
+               else:
+                   break
+
+
+           headers = {}
+           if existing_size > 0:
+               headers["Range"] = f"bytes={existing_size}-"
+               self.logger.info(f"Tentando retomar download de {filename} a partir de {existing_size} bytes.")
+
+
+           try:
+               response = requests.get(url, stream=True, timeout=timeout, headers=headers)
+
+
+               if existing_size > 0:
+                   if response.status_code == 206:
+                       mode = 'ab'
+                       self.logger.info(f"Servidor aceitou 'resume' (206). Continuando...")
+                   elif response.status_code == 200:
+                       self.logger.warning(f"Servidor IGNOROU 'resume' (retornou 200). Reiniciando download do zero.")
+                       existing_size = 0
+                       mode = 'wb'
+                   else:
+                       response.raise_for_status()
+              
+               else:
+                   if response.status_code != 200:
+                       self.logger.error(f"Erro ao iniciar novo download. Esperado 200 OK, mas recebi {response.status_code}")
+                       response.raise_for_status()
+                   mode = 'wb'
+              
+               with open(output_file, mode) as fout:
+                   with tqdm(
+                       total=total_size, initial=existing_size,
+                       desc=filename, unit='B', unit_scale=True, miniters=1,
+                       unit_divisor=1024
+                   ) as pbar:
+                       for chunk in response.iter_content(chunk_size=chunk_size):
+                           if chunk:
+                               fout.write(chunk)
+                               pbar.update(len(chunk))
+              
+               current_size = os.path.getsize(output_file)
+               if total_size > 0 and current_size < total_size:
+                   self.logger.warning(f"Download ainda incompleto ({current_size}/{total_size}). O loop vai tentar novamente...")
+               else:
+                   self.logger.info(f"Download de {filename} parece concluído ({current_size}/{total_size}).")
+                   break
+
+
+           except requests.exceptions.ChunkedEncodingError as e:
+               self.logger.warning(f"Erro de conexão (ChunkedEncodingError) durante download de {filename}: {e}. Tentando novamente...")
+           except requests.exceptions.RequestException as e:
+               self.logger.error(f"Erro de request fatal durante download de {filename}: {e}. Abortando.")
+               raise
+
+
+       return output_file
+
 
     def download_bands(
             self, image_assets, downloader,
@@ -76,12 +179,18 @@ class DownloadBands:
                 'thumbnail': 'THUMBNAIL',
                 'PROVENANCE': 'PROVENANCE'
             }
+        elif "S1A" in satellite.upper():
+            bands = {
+                'asset': 'asset',
+            }
 
         download_files = {}
 
         for band, suffix in bands.items():
             if band in image_assets:
                 filename = f"{prefix}_{suffix}.tif"
+                if satellite == "S1A":
+                    filename = f"{prefix}_{suffix}.zip"
                 object_name = os.path.join(
                    caminho_minio, filename
                     ).replace("\\", "/")
@@ -91,16 +200,15 @@ class DownloadBands:
                     continue
 
                 try:
-                    filepath = downloader.download(
-                        image_assets[band], filename
-                        )
+                    if satellite.upper() == "S1A":
+                        filepath = self.download_with_resume(image_assets[band], filename, output_dir=downloader.output_dir)
+                    else:
+                        filepath = downloader.download(image_assets[band], filename)
 
                     if filepath:
                         download_files[band] = filepath
                     else:
-                        self.logger.warning(
-                            f"Download falhou para banda '{band}' ({suffix})"
-                            )
+                        self.logger.warning(f"Download falhou para banda '{band}' ({suffix})")
                 except Exception as e:
                     self.logger.error(f"Erro ao baixar banda '{band}': {e}")
 

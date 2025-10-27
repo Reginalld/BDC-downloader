@@ -32,7 +32,7 @@ class MissionInfo:
             self.sat = "L8"
             self.level = "LEVEL2"
 
-        elif "s2" in sat_lower or "sentinel" in sat_lower:
+        elif "s2" in sat_lower:
             self.tiles_por_uf = SENTINEL_TILES
             self.tile_grid_path = SHAPEFILE_PATH
             self.bucket_prefix = "s2"
@@ -47,6 +47,14 @@ class MissionInfo:
             self.mission = "CBERS"
             self.sat = "CB4"
             self.level = "SR"
+        
+        elif "sentinel-1-grd-bundle-1" in sat_lower:
+            self.tiles_por_uf = None
+            self.tile_grid_path = None
+            self.bucket_prefix = "s1"
+            self.mission = "SENTINEL1"
+            self.sat = "S1A"
+            self.level = "SAR"
 
         else:
             raise ValueError(f"Satélite não reconhecido: {satellite}")

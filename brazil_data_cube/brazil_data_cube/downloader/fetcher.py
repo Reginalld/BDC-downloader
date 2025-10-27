@@ -39,6 +39,8 @@ class SatelliteImageFetcher:
                 satellite_fetcher = "landsat-2"
             elif "CB" in satellite.upper():
                 satellite_fetcher = "CBERS4-MUX-2M-1"
+            elif "S1A" in satellite:
+                satellite_fetcher = "sentinel-1-grd-bundle-1"
 
             self.logger.info(f"Buscando imagens do {satellite}...")
 
@@ -57,6 +59,9 @@ class SatelliteImageFetcher:
             )
 
             items = list(search_result.items())  # Converte resultados pra list
+
+            if satellite == "S1A":
+                return items[0]
 
             if tile:
                 if not items:
