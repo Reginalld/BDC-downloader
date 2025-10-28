@@ -60,7 +60,8 @@ class SatelliteImageFetcher:
 
             items = list(search_result.items())  # Converte resultados pra list
 
-            if satellite == "S1A":
+            if "S1A" in satellite and tile is '':
+                tile = items[0].properties.get('orbitNumber', '')
                 return items[0]
 
             if tile:
@@ -78,12 +79,14 @@ class SatelliteImageFetcher:
                     self.logger, tile_grid_path
                     )  # Instancia utilitário de geometria
                 # Filtra imagens que cobrem adequadamente o tile
-                items = [
-                        item for item in items if
-                        geometry_utils.is_good_geometry(item, tile,
-                                                        satellite,
-                                                        min_geometry_cover)
-                        ]
+
+                if "S1A" not in satellite:
+                    items = [
+                            item for item in items if
+                            geometry_utils.is_good_geometry(item, tile,
+                                                            satellite,
+                                                            min_geometry_cover)
+                            ]
 
                 if not items:
                     self.logger.warning(
@@ -107,8 +110,11 @@ class SatelliteImageFetcher:
 
                 # Tenta extrair o ID do tile usando os
                 # properties do BDC da primeira imagem
-                tile = items[0].properties.get('bdc:tiles', '')
-                tile = tile[0]
+                if "S1A" not in satellite:
+                    tile = items[0].properties.get('bdc:tiles', '')
+
+                if isinstance(tile, list):
+                    tile = tile[0] if tile else ''
 
                 geometry_utils = GeometryUtils(self.logger, tile_grid_path)
                 # Mesmo sem o tile informado, tenta validar
@@ -128,21 +134,22 @@ class SatelliteImageFetcher:
 
             best_item = items[0]
 
-            if best_item.properties.get(
-                                        'eo:cloud_cover', float('inf')
-                                        ) > max_cloud_cover:
-                self.logger.warning(
-                    "Nenhuma imagem que respeite o "
-                    "limite de nuvem foi encontrada"
-                    )
-                return None
+            if "S1A" not in satellite:
+                if best_item.properties.get(
+                                            'eo:cloud_cover', float('inf')
+                                            ) > max_cloud_cover:
+                    self.logger.warning(
+                        "Nenhuma imagem que respeite o "
+                        "limite de nuvem foi encontrada"
+                        )
+                    return None
 
-            cloud_cover = best_item.properties.get(
-                'eo:cloud_cover', 'desconhecido'
+                cloud_cover = best_item.properties.get(
+                    'eo:cloud_cover', 'desconhecido'
+                    )
+                self.logger.info(
+                    f"Imagem selecionada com {cloud_cover}% de nuvem."
                 )
-            self.logger.info(
-                f"Imagem selecionada com {cloud_cover}% de nuvem."
-            )
 
             return best_item  # Retorna os assets da imagem selecionada
 

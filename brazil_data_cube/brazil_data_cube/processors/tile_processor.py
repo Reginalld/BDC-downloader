@@ -79,6 +79,12 @@ class TileProcessor:
             grid = tile_grid_master[
                 tile_grid_master["tile"] == normalized_tile_id]
             return grid, "cbers", "CBERS", "CB4", "SR"
+        
+        elif "S1A" in satellite.upper():
+            normalized_tile_id = tile.replace("_", "/")
+            grid = tile_grid_master[
+                tile_grid_master["tile"] == normalized_tile_id]
+            return grid, "s1", "SENTINEL1", "S1A", "SAR"
 
         elif "L8" in satellite.upper():
             path, row = int(tile[:3]), int(tile[3:])

@@ -164,7 +164,7 @@ class BoundingBoxHandler:
             tile_id: str, satellite: str
             ) -> gpd.GeoDataFrame:
         """Filtra o shapefile pelo tile_id e satélite."""
-        if "CB" in satellite.upper():
+        if "CB" in satellite.upper() or "S1A" in satellite.upper():
             normalized_tile_id = tile_id.replace("_", "/")
             return tile_grid[tile_grid["tile"] == normalized_tile_id]
         elif "S2" in satellite.upper():

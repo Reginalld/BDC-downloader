@@ -48,9 +48,9 @@ class MissionInfo:
             self.sat = "CB4"
             self.level = "SR"
         
-        elif "sentinel-1-grd-bundle-1" in sat_lower:
-            self.tiles_por_uf = None
-            self.tile_grid_path = None
+        elif "s1" in sat_lower:
+            self.tiles_por_uf = CBERS_TILES
+            self.tile_grid_path = SHAPEFILE_PATH_BDC_MD
             self.bucket_prefix = "s1"
             self.mission = "SENTINEL1"
             self.sat = "S1A"

@@ -142,57 +142,6 @@ class ImageDownloader:
 
         mission_info = MissionInfo(satellite)
 
-        if "sentinel-1-grd-bundle-1" in satellite:
-            self.logger.info("Processando Sentinel-1 (modo radar SAR).")
-
-            # Bounding box é obrigatória (lat/lon ou tile_id → convertido para bbox)
-            bbox, lat, lon, _ = bbox_handler.obter_bounding_box(
-                tile_id,
-                lat,
-                lon,
-                radius_km,
-                mission_info.tile_grid_path,
-                mission_info.sat
-            )
-
-            image_assets = fetcher.fetch_image(
-                mission_info.sat,
-                bbox,
-                start_date,
-                end_date,
-                max_cloud_cover=0,        # ignorado internamente
-                tile_grid_path="",        # sem uso
-                min_geometry_cover=0.0,   # sem uso
-                tile=None,
-            )
-
-            if not image_assets:
-                self.logger.warning("Nenhuma imagem Sentinel-1 encontrada.")
-                return
-
-            # Usa timestamp como identificador
-            data_criacao = image_assets.properties.get("start_datetime", "")
-            data_formatada = (
-                datetime.fromisoformat(data_criacao.replace("Z", "+00:00")).strftime("%Y%m%d")
-                if data_criacao else "00000000"
-            )
-
-            prefix = f"{mission_info.sat}_{mission_info.mission}_{lat}_{lon}_{data_formatada}_{mission_info.level}"
-
-            download_files = DownloadBands(self.logger).download_bands(
-                image_assets.assets,
-                self,
-                prefix,
-                mission_info.sat,
-                uploader,
-                mission_info.bucket_prefix,
-            )
-
-            for path in download_files.values():
-                self.upload_and_cleanup(uploader, path, mission_info.bucket_prefix)
-
-            return
-
         if tile_id and tile_id.upper() in mission_info.tiles_por_uf:
             self.process_tiles_por_estado(
                 tile_id.upper(),
@@ -297,6 +246,10 @@ class ImageDownloader:
         if not image_assets:
             self.logger.warning("Nenhuma imagem encontrada.")
             return
+
+        print(tile_id)
+        if "S1A" in mission_info.sat and tile_id is None:
+            tile_id = image_assets.properties.get("orbitNumber", '')
 
         if not tile_id:
             tile_id = image_assets.properties.get("bdc:tiles", [""])[0]

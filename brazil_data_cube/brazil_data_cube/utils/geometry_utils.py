@@ -61,7 +61,7 @@ class GeometryUtils:
                 (tiles_gdf["PATH"] == path) & (tiles_gdf["ROW"] == row)
             ]
 
-        elif "CB" in satellite.upper():
+        elif "CB" in satellite.upper() or "S1A" in satellite.upper():
             tile_row = tiles_gdf[tiles_gdf["tile"] == tile_id]
 
         if tile_row.empty:
