@@ -47,7 +47,7 @@ class MissionInfo:
             self.mission = "CBERS"
             self.sat = "CB4"
             self.level = "SR"
-        
+
         elif "s1" in sat_lower:
             self.tiles_por_uf = CBERS_TILES
             self.tile_grid_path = SHAPEFILE_PATH_BDC_MD

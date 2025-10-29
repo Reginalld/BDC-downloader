@@ -108,7 +108,6 @@ class DownloadBands:
 
        return output_file
 
-
     def download_bands(
             self, image_assets, downloader,
             prefix, satellite, minio_uploader,
@@ -121,23 +120,23 @@ class DownloadBands:
         if "S2" in satellite.upper():
             bands = {
                 'B04': 'RED',
-                # 'B03': 'GREEN',
-                # 'B02': 'BLUE',
-                # 'AOT': 'AOT',
-                # 'B01': 'B01',
-                # 'B05': 'B05',
-                # 'B06': 'B06',
-                # 'B07': 'B07',
-                # 'B08': 'B08',
-                # 'B09': 'B09',
-                # 'B11': 'B11',
-                # 'B12': 'B12',
-                # 'B8A': 'B8A',
-                # 'PVI': 'PVI',
-                # 'SCL': 'SCL',
-                # 'TCI': 'TCI',
-                # 'WVP': 'WVP',
-                # 'MTD_TL': 'MTD_TL'
+                'B03': 'GREEN',
+                'B02': 'BLUE',
+                'AOT': 'AOT',
+                'B01': 'B01',
+                'B05': 'B05',
+                'B06': 'B06',
+                'B07': 'B07',
+                'B08': 'B08',
+                'B09': 'B09',
+                'B11': 'B11',
+                'B12': 'B12',
+                'B8A': 'B8A',
+                'PVI': 'PVI',
+                'SCL': 'SCL',
+                'TCI': 'TCI',
+                'WVP': 'WVP',
+                'MTD_TL': 'MTD_TL'
             }
         elif "L8" in satellite.upper():
             bands = {
@@ -201,14 +200,18 @@ class DownloadBands:
 
                 try:
                     if satellite.upper() == "S1A":
-                        filepath = self.download_with_resume(image_assets[band], filename, output_dir=downloader.output_dir)
+                        filepath = self.download_with_resume(
+                            image_assets[band], filename,
+                            output_dir=downloader.output_dir)
                     else:
-                        filepath = downloader.download(image_assets[band], filename)
+                        filepath = downloader.download(
+                            image_assets[band], filename)
 
                     if filepath:
                         download_files[band] = filepath
                     else:
-                        self.logger.warning(f"Download falhou para banda '{band}' ({suffix})")
+                        self.logger.warning(f"Download falhou para "
+                                            f"banda '{band}' ({suffix})")
                 except Exception as e:
                     self.logger.error(f"Erro ao baixar banda '{band}': {e}")
 

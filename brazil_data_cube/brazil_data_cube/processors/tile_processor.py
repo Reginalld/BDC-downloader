@@ -79,7 +79,7 @@ class TileProcessor:
             grid = tile_grid_master[
                 tile_grid_master["tile"] == normalized_tile_id]
             return grid, "cbers", "CBERS", "CB4", "SR"
-        
+
         elif "S1A" in satellite.upper():
             normalized_tile_id = tile.replace("_", "/")
             grid = tile_grid_master[

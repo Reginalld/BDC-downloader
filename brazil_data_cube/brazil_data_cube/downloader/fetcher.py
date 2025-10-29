@@ -60,7 +60,7 @@ class SatelliteImageFetcher:
 
             items = list(search_result.items())  # Converte resultados pra list
 
-            if "S1A" in satellite and tile is '':
+            if "S1A" in satellite and tile == '':
                 tile = items[0].properties.get('orbitNumber', '')
                 return items[0]
 
