@@ -249,7 +249,25 @@ class ImageDownloader:
 
         print(tile_id)
         if "S1A" in mission_info.sat and tile_id is None:
-            tile_id = image_assets.properties.get("orbitNumber", '')
+            geo = image_assets.properties.get("GeoFootprint", {})
+            coords = geo.get("coordinates", [[]])[0] if geo else []
+
+            if coords:
+                # Extrai listas separadas de longitudes e latitudes
+                lons = [pt[0] for pt in coords]
+                lats = [pt[1] for pt in coords]
+
+                # Bounding box: [minx, miny, maxx, maxy]
+                bbox = [
+                    round(min(lons), 4),
+                    round(min(lats), 4),
+                    round(max(lons), 4),
+                    round(max(lats), 4)
+                ]
+
+                tile_id = "_".join(map(str, bbox))
+            else:
+                tile_id = ""
 
         if not tile_id:
             tile_id = image_assets.properties.get("bdc:tiles", [""])[0]
