@@ -10,7 +10,8 @@ from shapely.geometry import MultiPolygon, Polygon, shape
 
 
 class BoundingBoxHandler:
-    def __init__(self, logger: logging.Logger, reduction_factor: float = 0.2):
+    def __init__(
+            self, logger: logging.Logger, reduction_factor: float = 0.005):
         self.reduction_factor = reduction_factor
         self.logger = logger
 
