@@ -3,6 +3,9 @@
 import logging
 from typing import Any, Dict, Optional
 
+from shapely import wkt
+from shapely.geometry import box, shape
+
 from ..utils.geometry_utils import GeometryUtils
 from ..utils.logger import ResultManager
 
@@ -60,9 +63,52 @@ class SatelliteImageFetcher:
 
             items = list(search_result.items())  # Converte resultados pra list
 
-            if "S1A" in satellite and tile == '':
-                tile = items[0].properties.get('orbitNumber', '')
-                return items[0]
+            if "S1A" in satellite:
+                if not items:
+                    self.logger.warning("Nenhuma imagem S1A encontrada.")
+                    return None
+
+                user_poly = box(*bounding_box)
+
+                scored_items = []
+                for item in items:
+                    try:
+                        if "GeoFootprint" in item.properties:
+                            footprint_poly = shape(
+                                item.properties["GeoFootprint"])
+                        elif "Footprint" in item.properties:
+                            clean = item.properties["Footprint"].replace(
+                                "geography'SRID=4326;", "")
+                            footprint_poly = wkt.loads(clean)
+                        else:
+                            continue
+
+                        intersection = user_poly.intersection(
+                            footprint_poly).area
+                        coverage = intersection / user_poly.area
+
+                        scored_items.append((coverage, item))
+
+                    except Exception as e:
+                        self.logger.warning(
+                            f"Erro ao processar geometria S1A: {e}")
+                        continue
+
+                if not scored_items:
+                    self.logger.warning(
+                        "Nenhuma imagem S1A com geometria válida.")
+                    return None
+
+                # selecionar a imagem com MAIOR cobertura
+                scored_items.sort(key=lambda x: x[0], reverse=True)
+                best_item = scored_items[0][1]
+
+                self.logger.info(
+                    f"Melhor imagem S1A encontrada com cobertura "
+                    f"geométrica de {scored_items[0][0] * 100:.2f}%"
+                )
+
+                return best_item
 
             if tile:
                 if not items:
@@ -166,8 +212,7 @@ class SatelliteImageFetcher:
 
     def _build_filter(self, satellite, max_cloud_cover):
         """
-        Cria o filtro de busca com base no satélite
-        (não funcional na API do Brazil Data Cube).
+        Cria o filtro de busca com base no satélite.
         """
         cloud_property = "eo:cloud_cover"
 
