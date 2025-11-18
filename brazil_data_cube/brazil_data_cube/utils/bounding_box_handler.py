@@ -207,3 +207,22 @@ class BoundingBoxHandler:
         from .bounding_box_calculator import BoundingBoxCalculator
         self.logger.info("Processando sem tile ID.")
         return BoundingBoxCalculator.calculate(lat, lon, radius_km)
+
+    def extract_bbox_from_footprint(self, item):
+        footprint = item.properties.get("GeoFootprint")
+        if not footprint:
+            return None
+
+        try:
+            polygon = shape(footprint)
+            minx, miny, maxx, maxy = polygon.bounds
+            self.logger.info(f"Footprint extraído via Sentinel-1: "
+                             f"[{minx}, {miny}, {maxx}, {maxy}]")
+            return [minx, miny, maxx, maxy]
+        except Exception as e:
+            self.logger.error(f"Falha ao extrair bbox do footprint: {e}")
+            return None
+
+    def make_tile_id_from_bbox(self, bbox):
+        minx, miny, maxx, maxy = bbox
+        return f"{minx:.4f}_{miny:.4f}_{maxx:.4f}_{maxy:.4f}"
