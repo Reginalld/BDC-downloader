@@ -21,7 +21,6 @@ from brazil_data_cube.minio.MinioUploader import MinioUploader
 from brazil_data_cube.processors.tile_processor import TileProcessor
 from brazil_data_cube.utils.bdc_connection import BdcConnection
 from brazil_data_cube.utils.bounding_box_handler import BoundingBoxHandler
-from brazil_data_cube.utils.logger import ResultManager
 
 with open(TILES_PATH_LANDSAT, "r", encoding="utf-8") as f:
     LANDSAT_TILES_POR_UF = json.load(f)
@@ -38,7 +37,6 @@ class ImageDownloader:
         self.output_dir = output_dir
         self.logger = logger
         self.create_output()
-        self.remover_log = ResultManager.setup_deletion_logger()
 
     def create_output(self) -> None:
         """Cria diretório de saída se ele não existir."""
@@ -201,7 +199,6 @@ class ImageDownloader:
         self.logger.info(f"Iniciando tiles do estado {uf}...")
         TileProcessor(
             self.logger,
-            self.remover_log,
             fetcher,
             self,
             self.output_dir,
@@ -247,27 +244,10 @@ class ImageDownloader:
             self.logger.warning("Nenhuma imagem encontrada.")
             return
 
-        print(tile_id)
         if "S1A" in mission_info.sat and tile_id is None:
-            geo = image_assets.properties.get("GeoFootprint", {})
-            coords = geo.get("coordinates", [[]])[0] if geo else []
-
-            if coords:
-                # Extrai listas separadas de longitudes e latitudes
-                lons = [pt[0] for pt in coords]
-                lats = [pt[1] for pt in coords]
-
-                # Bounding box: [minx, miny, maxx, maxy]
-                bbox = [
-                    round(min(lons), 4),
-                    round(min(lats), 4),
-                    round(max(lons), 4),
-                    round(max(lats), 4)
-                ]
-
-                tile_id = "_".join(map(str, bbox))
-            else:
-                tile_id = ""
+            bbox = bbox_handler.extract_bbox_from_footprint(image_assets)
+            if bbox:
+                tile_id = bbox_handler.make_tile_id_from_bbox(bbox)
 
         if not tile_id:
             tile_id = image_assets.properties.get("bdc:tiles", [""])[0]
@@ -294,24 +274,7 @@ class ImageDownloader:
         )
 
         for path in download_files.values():
-            self.upload_and_cleanup(uploader, path, mission_info.bucket_prefix)
-
-    def upload_and_cleanup(
-            self, uploader: MinioUploader, filepath: str, bucket_prefix: str
-            ) -> None:
-        """Faz upload para MinIO e remove o
-        arquivo local se já existir no bucket."""
-        object_name = os.path.join(bucket_prefix, os.path.basename(filepath))
-
-        uploader.upload_file(filepath, object_name=object_name)
-
-        if uploader.object_exists(object_name, x=1):
-            self.remover_log.info(f"Removendo local: {filepath}")
-            try:
-                os.remove(filepath)
-                self.remover_log.info(f"Arquivo {filepath} "
-                                      "deletado com sucesso.")
-            except FileNotFoundError:
-                self.remover_log.warning(f"Arquivo {filepath} não encontrado.")
-            except Exception as e:
-                self.remover_log.error(f"Erro ao deletar {filepath}: {e}")
+            object_name = os.path.join(
+                mission_info.bucket_prefix,
+                os.path.basename(path)).replace("\\", "/")
+            uploader.upload_and_cleanup_file(path, object_name=object_name)

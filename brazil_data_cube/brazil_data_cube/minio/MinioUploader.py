@@ -1,5 +1,6 @@
 import os
 import time
+from typing import Dict, Tuple
 
 from minio import Minio
 from minio.error import S3Error
@@ -19,6 +20,7 @@ class MinioUploader:
         )
         self.bucket_name = bucket_name
         self.logger = ResultManager.setup_minio_logger()
+        self.remover_log = ResultManager.setup_deletion_logger()
 
     def upload_file(self, local_path: str, object_name: str = None):
         """ Função que executa upload de um arquivo individual """
@@ -116,3 +118,84 @@ class MinioUploader:
             if e.code == "NoSuchKey":
                 return False
             raise
+
+    def upload_and_cleanup_file(
+            self, local_path: str, object_name: str = None) -> bool:
+        """
+        Faz upload de um arquivo e remove o arquivo local
+        caso o upload tenha sido bem-sucedido.
+        Retorna True se arquivo enviado e removido
+        com sucesso, False caso contrário.
+        """
+        if not object_name:
+            object_name = os.path.basename(local_path)
+
+        success = self.upload_file(local_path, object_name=object_name)
+        if not success:
+            self.logger.error(
+                f"Upload falhou para {local_path}. Manter local.")
+            return False
+
+        # Confirma existência e remove
+        try:
+            if self.object_exists(object_name, x=1):
+                try:
+                    os.remove(local_path)
+                    self.remover_log.info(
+                        f"Arquivo removido após upload: {local_path}")
+                except FileNotFoundError:
+                    self.remover_log.warning(
+                        f"Arquivo não encontrado "
+                        f"ao tentar remover: {local_path}")
+                except Exception as e:
+                    self.remover_log.error(
+                        f"Erro ao remover arquivo {local_path}: {e}")
+                    return False
+            else:
+                # Se por algum motivo não foi encontrado após upload, logamos
+                self.logger.warning(
+                    f"Arquivo aparentemente não presente "
+                    f"o bucket após upload: {object_name}")
+                return False
+        except Exception as e:
+            self.logger.error(
+                f"Erro ao verificar existência "
+                f"em bucket para {object_name}: {e}")
+            return False
+
+        return True
+
+    def upload_and_cleanup_batch(
+            self,
+            downloaded_files: Dict[str, str],
+            prefix: str) -> Tuple[int, int]:
+        """
+        Faz upload de vários arquivos (um dict de paths),
+        aplicando prefix e removendo os arquivos locais
+        caso o upload tenha sido bem-sucedido.
+        Retorna (num_success, num_failed).
+        """
+        num_success = 0
+        num_failed = 0
+
+        for local_path in downloaded_files.values():
+            object_name = os.path.join(
+                prefix, os.path.basename(local_path)).replace("\\", "/")
+
+            try:
+                success = self.upload_and_cleanup_file(
+                    local_path, object_name=object_name)
+            except Exception as e:
+                self.logger.error(f"Erro ao processar {local_path}: {e}")
+                success = False
+
+            if success:
+                num_success += 1
+            else:
+                num_failed += 1
+
+        self.logger.info(
+            "Batch upload finalizado: %d sucesso, %d falha (prefix=%s)",
+            num_success, num_failed, prefix
+        )
+        return num_success, num_failed

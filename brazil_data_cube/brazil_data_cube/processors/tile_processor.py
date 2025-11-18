@@ -17,7 +17,6 @@ class TileProcessor:
     def __init__(
         self,
         logger: logging.Logger,
-        remover_loger: logging.Logger,
         fetcher: any,
         downloader: any,
         output_dir: str,
@@ -28,7 +27,6 @@ class TileProcessor:
     ):
         self.fetcher = fetcher
         self.logger = logger
-        self.remover_loger = remover_loger
         self.downloader = downloader
         self.output_dir = output_dir
         self.tile_grid_path = tile_grid_path
@@ -105,22 +103,6 @@ class TileProcessor:
             data_formatada = "00000000"
         return f"{sat}_{mission}_{tile}_{data_formatada}_{level}"
 
-    def upload_and_cleanup(self, downloaded_files, minio_prefix):
-        """Faz upload para o MinIO e remove arquivos locais."""
-        for path in downloaded_files.values():
-            object_name = os.path.join(minio_prefix, os.path.basename(path))
-            self.minio_uploader.upload_file(path, object_name=object_name)
-
-            if self.minio_uploader.object_exists(object_name, x=1):
-                self.remover_loger.info(f"Removendo {path} do disco local")
-                try:
-                    os.remove(path)
-                except FileNotFoundError:
-                    self.remover_loger.warning(
-                        f"{path} não encontrado para deletar.")
-                except Exception as e:
-                    self.remover_loger.error(f"Erro ao deletar {path}: {e}")
-
     def process_tile_list(self, tiles_list, satellite, start_date, end_date):
         """Processa todos os tiles fornecidos."""
         tile_grid_master = self.load_grid_robustly()
@@ -182,7 +164,8 @@ class TileProcessor:
                 self.minio_uploader,
                 minio_prefix
             )
-            self.upload_and_cleanup(downloaded_files, minio_prefix)
+            self.minio_uploader.upload_and_cleanup_batch(
+                downloaded_files, minio_prefix)
 
             # Prepara resultados
             tile_mosaic_output = os.path.join(
