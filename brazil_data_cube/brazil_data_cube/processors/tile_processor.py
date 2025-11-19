@@ -36,35 +36,6 @@ class TileProcessor:
         self.minio_uploader = minio_uploader
         self.min_geometry_cover = min_geometry_cover
 
-    def load_grid_robustly(self):
-        """
-        Carrega a grade de tiles de forma robusta,
-        lidando com projeções customizadas
-        que causam erro no gpd.read_file() padrão.
-        """
-        self.logger.info(f"Carregando grade com "
-                         f"projeção customizada: {self.tile_grid_path}")
-        try:
-            with fiona.open(self.tile_grid_path, 'r') as collection:
-                custom_crs_wkt = collection.crs_wkt
-                records = [
-                    {'properties': rec['properties'],
-                     'geometry': shape(rec['geometry'])} for rec in collection
-                    ]
-
-            attrs = gpd.pd.DataFrame([rec['properties'] for rec in records])
-            geoms = gpd.GeoSeries([rec['geometry'] for rec in records],
-                                  crs=custom_crs_wkt)
-            grid = gpd.GeoDataFrame(attrs, geometry=geoms)
-
-            self.logger.info(f"Grade '{os.path.basename(self.tile_grid_path)}'"
-                             f" carregada com sucesso ({len(grid)} tiles).")
-            return grid
-        except Exception as e:
-            self.logger.error(f"Falha crítica ao "
-                              f"carregar a grade de tiles: {e}")
-            return None
-
     def resolve_tile(self, grid_master, tile, satellite):
         """Resolve grade + mission info."""
         sat = satellite.upper()
