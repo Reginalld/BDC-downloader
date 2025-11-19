@@ -65,30 +65,29 @@ class TileProcessor:
                               f"carregar a grade de tiles: {e}")
             return None
 
-    def select_tile_grid(self, tile_grid_master, tile, satellite):
-        """Seleciona o tile correspondente no shapefile"""
-        if "S2" in satellite.upper():
-            return tile_grid_master[
-                tile_grid_master["NAME"] == tile
-                ], "s2", "SENTINEL2", "S2A", "L2A"
+    def resolve_tile(self, grid_master, tile, satellite):
+        """Resolve grade + mission info."""
+        sat = satellite.upper()
 
-        elif "CB" in satellite.upper():
-            normalized_tile_id = tile.replace("_", "/")
-            grid = tile_grid_master[
-                tile_grid_master["tile"] == normalized_tile_id]
+        if "S2" in sat:
+            grid = grid_master[grid_master["NAME"] == tile]
+            return grid, "s2", "SENTINEL2", "S2A", "L2A"
+
+        if "CB" in sat:
+            normalized = tile.replace("_", "/")
+            grid = grid_master[grid_master["tile"] == normalized]
             return grid, "cbers", "CBERS", "CB4", "SR"
 
-        elif "S1A" in satellite.upper():
-            normalized_tile_id = tile.replace("_", "/")
-            grid = tile_grid_master[
-                tile_grid_master["tile"] == normalized_tile_id]
+        if "S1A" in sat:
+            normalized = tile.replace("_", "/")
+            grid = grid_master[grid_master["tile"] == normalized]
             return grid, "s1", "SENTINEL1", "S1A", "SAR"
 
-        elif "L8" in satellite.upper():
+        if "L8" in sat:
             path, row = int(tile[:3]), int(tile[3:])
-            grid = tile_grid_master[
-                (tile_grid_master["PATH"] == path)
-                & (tile_grid_master["ROW"] == row)
+            grid = grid_master[
+                (grid_master["PATH"] == path) &
+                (grid_master["ROW"] == row)
             ]
             return grid, "landsat", "LANDSAT", "L8", "LEVEL2"
 
@@ -102,83 +101,83 @@ class TileProcessor:
         else:
             data_formatada = "00000000"
         return f"{sat}_{mission}_{tile}_{data_formatada}_{level}"
+    
 
-    def process_tile_list(self, tiles_list, satellite, start_date, end_date):
-        """Processa todos os tiles fornecidos."""
-        tile_grid_master = self.load_grid_robustly()
-        if tile_grid_master is None:
-            self.logger.error("Abortande: grade de tiles não carregada.")
+    def process_single_tile(self, tile, grid_master, satellite, start_date, end_date):
+
+        tile_grid, minio_prefix, mission, sat, level = \
+            self.resolve_tile(grid_master, tile, satellite)
+
+        if tile_grid.empty:
+            self.logger.warning(f"Tile {tile} não encontrada.")
+            return None
+
+        # Bounding box
+        tile_grid_wgs84 = tile_grid.to_crs("EPSG:4326")
+        bbox = self.bbox_handler.calculate_reduced_bbox(tile_grid_wgs84)
+
+        # Busca imagem
+        assets = self.fetcher.fetch_image(
+            satellite, bbox, start_date, end_date,
+            self.max_cloud_cover, self.tile_grid_path,
+            self.min_geometry_cover, tile
+        )
+        if not assets:
+            self.logger.warning(f"Nenhuma imagem encontrada para {tile}.")
+            return None
+
+        prefix = self.build_prefix(
+            sat, mission, tile,
+            assets.properties.get("start_datetime", ""),
+            level
+        )
+
+        # Download
+        downloaded = DownloadBands(self.logger).download_bands(
+            assets.assets,
+            self.downloader,
+            prefix,
+            satellite,
+            self.minio_uploader,
+            minio_prefix
+        )
+
+        # Upload
+        self.minio_uploader.upload_and_cleanup_batch(downloaded, minio_prefix)
+
+        # Output mosaic path
+        mosaic_path = os.path.join(
+            self.output_dir,
+            f"{satellite}_{tile}_{start_date}_{end_date}_RGB.tif"
+        )
+        return mosaic_path
+
+    def process_tile_list(self, tiles, satellite, start_date, end_date):
+
+        grid_master = self.bbox_handler.load_tile_grid(self.tile_grid_path)
+        if grid_master is None:
             return
 
-        results_time_estimated = []
-        tile_mosaic_files = []
+        mosaic_files = []
+        durations = []
 
-        for tile in tiles_list:
-            start = time.perf_counter()
+        for tile in tiles:
             self.logger.info(f"Processando tile {tile}...")
+            start = time.perf_counter()
 
-            # Seleciona grade e infos da missão
-            tile_grid, minio_prefix, mission, sat, level = self. \
-                select_tile_grid(tile_grid_master, tile, satellite)
+            try:
+                mosaic = self.process_single_tile(
+                    tile, grid_master, satellite, start_date, end_date)
 
-            if tile_grid.empty:
-                self.logger.warning(f"Tile {tile} não encontrada. Pulando...")
-                continue
+                if mosaic:
+                    mosaic_files.append(mosaic)
 
-            # Converte CRS antes de calcular bbox
-            tile_grid_wgs84 = tile_grid.to_crs("EPSG:4326")
-            main_bbox = self.bbox_handler.calculate_reduced_bbox(
-                tile_grid_wgs84)
-
-            # Busca imagens
-            image_assets = self.fetcher.fetch_image(
-                satellite,
-                main_bbox,
-                start_date,
-                end_date,
-                self.max_cloud_cover,
-                self.tile_grid_path,
-                self.min_geometry_cover,
-                tile,
-            )
-            if not image_assets:
-                self.logger.warning(f"Nenhuma imagem encontrada para {tile}.")
-                continue
-
-            # Monta prefixo com data
-            prefix = self.build_prefix(
-                sat,
-                mission,
-                tile,
-                image_assets.properties.get("start_datetime", ""),
-                level
-            )
-
-            # Download + upload
-            self.logger.info("Baixando imagens...")
-            downloaded_files = DownloadBands(self.logger).download_bands(
-                image_assets.assets,
-                self.downloader,
-                prefix,
-                satellite,
-                self.minio_uploader,
-                minio_prefix
-            )
-            self.minio_uploader.upload_and_cleanup_batch(
-                downloaded_files, minio_prefix)
-
-            # Prepara resultados
-            tile_mosaic_output = os.path.join(
-                self.output_dir,
-                f"{satellite}_{tile}_{start_date}_{end_date}_RGB.tif"
-            )
-            tile_mosaic_files.append(tile_mosaic_output)
+            except Exception as e:
+                self.logger.error(f"Erro ao processar tile {tile}: {e}")
 
             duration = time.perf_counter() - start
-            results_time_estimated.append(
-                {"Tile_id": tile, "duration_sec": duration})
+            durations.append({"Tile_id": tile, "duration_sec": duration})
 
-        # Finaliza
         self.result_manager.manage_results(
-            tile_mosaic_files, results_time_estimated, satellite, start_date
+            mosaic_files, durations, satellite, start_date
         )
