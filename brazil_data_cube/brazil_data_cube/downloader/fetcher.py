@@ -1,7 +1,7 @@
 # brazil_data_cube/downloader/fetcher.py
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple, List
 
 from shapely import wkt
 from shapely.geometry import box, shape
@@ -9,6 +9,14 @@ from shapely.geometry import box, shape
 from ..utils.geometry_utils import GeometryUtils
 from ..utils.logger import ResultManager
 
+
+CLOUD_PROP = "eo:cloud_cover"
+COLLECTION_MAP = {
+        "S2": "S2_L2A-1",
+        "S1A": "sentinel-1-grd-bundle-1",
+        "L8":  "landsat-2",
+        "CB": "CBERS4-MUX-2M-1"
+    }
 
 class SatelliteImageFetcher:
     def __init__(self, logger: logging.Logger, connection: any):
@@ -35,208 +43,149 @@ class SatelliteImageFetcher:
         Returns:
             Optional[Dict]: Assets da imagem ou None se não encontrar
         """
+        collection_id = self.get_collection_id(satellite)
+        
+        self.logger.info(f"Buscando imagens do {satellite} ({collection_id})...")
+
         try:
-            if "S2" in satellite.upper():
-                satellite_fetcher = "S2_L2A-1"
-            elif "L8" in satellite.upper():
-                satellite_fetcher = "landsat-2"
-            elif "CB" in satellite.upper():
-                satellite_fetcher = "CBERS4-MUX-2M-1"
-            elif "S1A" in satellite:
-                satellite_fetcher = "sentinel-1-grd-bundle-1"
-
-            self.logger.info(f"Buscando imagens do {satellite}...")
-
-            # Construindo filtro com base no satélite
-            stac_filter = self._build_filter(
-                satellite_fetcher, max_cloud_cover
-                )
-
-            # Executa a busca na API com os parâmetros fornecidos
-            search_result = self.connection.search(
-                bbox=bounding_box,
-                datetime=[start_date, end_date],
-                collections=[satellite_fetcher],
-                filter=stac_filter  # Filtro não funcional
-                                    # no Stac utilizado pelo BDC
+            # 1. Busca inicial no STAC
+            items = self.search_items(
+                collection_id, bounding_box, start_date, end_date, max_cloud_cover
             )
 
-            items = list(search_result.items())  # Converte resultados pra list
+            if not items:
+                self.log_no_items(satellite, tile, start_date)
+                return None
 
+            # 2. Roteamento de lógica: Radar (S1) vs Óptico (S2, L8, CBERS)
             if "S1A" in satellite:
-                if not items:
-                    self.logger.warning("Nenhuma imagem S1A encontrada.")
-                    return None
-
-                user_poly = box(*bounding_box)
-
-                scored_items = []
-                for item in items:
-                    try:
-                        if "GeoFootprint" in item.properties:
-                            footprint_poly = shape(
-                                item.properties["GeoFootprint"])
-                        elif "Footprint" in item.properties:
-                            clean = item.properties["Footprint"].replace(
-                                "geography'SRID=4326;", "")
-                            footprint_poly = wkt.loads(clean)
-                        else:
-                            continue
-
-                        intersection = user_poly.intersection(
-                            footprint_poly).area
-                        coverage = intersection / user_poly.area
-
-                        scored_items.append((coverage, item))
-
-                    except Exception as e:
-                        self.logger.warning(
-                            f"Erro ao processar geometria S1A: {e}")
-                        continue
-
-                if not scored_items:
-                    self.logger.warning(
-                        "Nenhuma imagem S1A com geometria válida.")
-                    return None
-
-                # selecionar a imagem com MAIOR cobertura
-                scored_items.sort(key=lambda x: x[0], reverse=True)
-                best_item = scored_items[0][1]
-
-                self.logger.info(
-                    f"Melhor imagem S1A encontrada com cobertura "
-                    f"geométrica de {scored_items[0][0] * 100:.2f}%"
-                )
-
-                return best_item
-
-            if tile:
-                if not items:
-                    self.logger.error(
-                        f"Nenhuma imagem disponível para o tile '{tile}'."
-                        )
-                    self.resultmanager.log_error_csv(
-                        tile, satellite,
-                        "Nenhuma imagem encontrada.", start_date
-                        )
-                    return None
-
-                geometry_utils = GeometryUtils(
-                    self.logger, tile_grid_path
-                    )  # Instancia utilitário de geometria
-                # Filtra imagens que cobrem adequadamente o tile
-
-                if "S1A" not in satellite:
-                    items = [
-                            item for item in items if
-                            geometry_utils.is_good_geometry(item, tile,
-                                                            satellite,
-                                                            min_geometry_cover)
-                            ]
-
-                if not items:
-                    self.logger.warning(
-                        f"Nenhuma imagem passou no filtro "
-                        f"de geometria para o tile: {tile}"
-                        )
-                    self.resultmanager.log_error_csv(
-                        tile,
-                        satellite,
-                        "Imagem não passou no filtro de geometria.",
-                        start_date,
-                    )
-                    return None
+                return self.select_best_radar_image(items, bounding_box)
             else:
-                if not items:
-                    self.logger.warning(
-                        "Nenhuma imagem disponível "
-                        "para os parâmetros fornecidos."
-                    )
-                    return None
-
-                # Tenta extrair o ID do tile usando os
-                # properties do BDC da primeira imagem
-                if "S1A" not in satellite:
-                    tile = items[0].properties.get('bdc:tiles', '')
-
-                if isinstance(tile, list):
-                    tile = tile[0] if tile else ''
-
-                geometry_utils = GeometryUtils(self.logger, tile_grid_path)
-                # Mesmo sem o tile informado, tenta validar
-                # a geometria da imagem com base no tile inferido
-                items = [
-                    item for item in items
-                    if geometry_utils.is_good_geometry(item, tile,
-                                                       satellite,
-                                                       min_geometry_cover)
-                ]
-
-            # Seleciona a melhor imagem (menor cobertura de nuvem)
-            items.sort(
-                key=lambda item: item.properties.get
-                ('eo:cloud_cover', float('inf'))
-            )
-
-            best_item = items[0]
-
-            if "S1A" not in satellite:
-                if best_item.properties.get(
-                                            'eo:cloud_cover', float('inf')
-                                            ) > max_cloud_cover:
-                    self.logger.warning(
-                        "Nenhuma imagem que respeite o "
-                        "limite de nuvem foi encontrada"
-                        )
-                    return None
-
-                cloud_cover = best_item.properties.get(
-                    'eo:cloud_cover', 'desconhecido'
-                    )
-                self.logger.info(
-                    f"Imagem selecionada com {cloud_cover}% de nuvem."
+                return self.select_best_optical_image(
+                    items, tile, satellite, tile_grid_path, 
+                    min_geometry_cover, max_cloud_cover, start_date
                 )
-
-            return best_item  # Retorna os assets da imagem selecionada
 
         except Exception as e:
-            error_msg = str(e)
-            self.logger.error(
-                f"Erro ao obter imagem do {satellite}: {error_msg}",
-                exc_info=True
-            )
-            self.resultmanager.log_error_csv(
-                tile, satellite, error_msg, start_date
-                )
+            self.handle_error(e, satellite, tile, start_date)
             return None
 
-    def _build_filter(self, satellite, max_cloud_cover):
-        """
-        Cria o filtro de busca com base no satélite.
-        """
-        cloud_property = "eo:cloud_cover"
+    def get_collection_id(self, satellite_name: str) -> str:
+        """Resolve o ID da coleção baseado no nome do satélite."""
+        for key, collection in COLLECTION_MAP.items():
+            if key in satellite_name.upper():
+                return collection
+        return satellite_name 
 
-        if satellite == 'S2':
-            return {
-                "op": "and",
-                "args": [
-                    {
-                        "op": "lte",
-                        "args": [
-                                {"property": cloud_property},
-                                max_cloud_cover
-                                  ],
-                    },
-                    {
-                        "op": "gte",
-                        "args": [{"property": cloud_property}, 10],
-                    },
-                ],
-            }
-        elif satellite == 'S2-16D-2':
-            return {
-                "op": "lte",
-                "args": [{"property": cloud_property}, max_cloud_cover],
-            }
+    def search_items(self, collection_id: str, bbox: list, start: str, 
+                      end: str, max_cloud: float) -> List[Any]:
+        """Executa a busca crua na API STAC."""
+        
+        search_result = self.connection.search(
+            bbox=bbox,
+            datetime=[start, end],
+            collections=[collection_id],
+        )
+        return list(search_result.items())
+
+    def select_best_radar_image(self, items: List[Any], bounding_box: list) -> Optional[Dict]:
+        """Lógica específica para Sentinel-1 (baseada em interseção geométrica)."""
+        user_poly = box(*bounding_box)
+        scored_items: List[Tuple[float, Any]] = []
+
+        for item in items:
+            try:
+                footprint_poly = self.extract_footprint(item)
+                if not footprint_poly:
+                    continue
+
+                # Calcula cobertura
+                intersection = user_poly.intersection(footprint_poly).area
+                coverage = intersection / user_poly.area
+                scored_items.append((coverage, item))
+
+            except Exception as e:
+                self.logger.warning(f"Erro ao processar geometria S1A: {e}")
+                continue
+
+        if not scored_items:
+            self.logger.warning("Nenhuma imagem S1A com geometria válida.")
+            return None
+
+        # Ordena pela maior cobertura
+        scored_items.sort(key=lambda x: x[0], reverse=True)
+        best_coverage, best_item = scored_items[0]
+
+        self.logger.info(
+            f"Melhor imagem S1A encontrada com cobertura geométrica de {best_coverage * 100:.2f}%"
+        )
+        return best_item
+
+    def extract_footprint(self, item: Any) -> Optional[Any]:
+        """Extrai geometria do item STAC (suporta GeoFootprint e WKT)."""
+        props = item.properties
+        if "GeoFootprint" in props:
+            return shape(props["GeoFootprint"])
+        elif "Footprint" in props:
+            clean_wkt = props["Footprint"].replace("geography'SRID=4326;", "")
+            return wkt.loads(clean_wkt)
+        return None
+
+    def select_best_optical_image(self, items: List[Any], tile: Optional[str], 
+                                   satellite: str, tile_grid_path: str,
+                                   min_geo_cover: float, max_cloud_cover: float,
+                                   start_date: str) -> Optional[Dict]:
+        """Lógica para satélites ópticos (filtro de nuvem e tile grid)."""
+        
+        # Instancia utilitário apenas se necessário
+        geo_utils = GeometryUtils(self.logger, tile_grid_path)
+
+        # Se tile não foi passado, tenta inferir do primeiro item (comportamento original)
+        target_tile = tile
+        if not target_tile and items:
+            bdc_tiles = items[0].properties.get('bdc:tiles', '')
+            target_tile = bdc_tiles[0] if isinstance(bdc_tiles, list) and bdc_tiles else ''
+
+        # Filtra por geometria válida
+        valid_items = [
+            item for item in items
+            if geo_utils.is_good_geometry(item, target_tile, satellite, min_geo_cover)
+        ]
+
+        if not valid_items:
+            msg = "Imagem não passou no filtro de geometria." if tile else "Nenhuma imagem disponível para os parâmetros."
+            self.logger.warning(f"{msg} Tile: {tile}")
+            if tile:
+                self.resultmanager.log_error_csv(tile, satellite, msg, start_date)
+            return None
+
+        # Ordena por cobertura de nuvem (menor para maior)
+        valid_items.sort(key=lambda x: x.properties.get(CLOUD_PROP, float('inf')))
+        best_item = valid_items[0]
+        
+        # Validação final de nuvens
+        cloud_val = best_item.properties.get(CLOUD_PROP, float('inf'))
+        
+        if cloud_val > max_cloud_cover:
+            self.logger.warning("Nenhuma imagem que respeite o limite de nuvem foi encontrada")
+            return None
+
+        self.logger.info(f"Imagem selecionada com {cloud_val}% de nuvem.")
+        return best_item
+
+    def log_no_items(self, satellite, tile, date):
+        """Log centralizado quando a busca retorna vazio."""
+        if tile:
+            msg = f"Nenhuma imagem disponível para o tile '{tile}'."
+            self.logger.error(msg)
+            self.resultmanager.log_error_csv(tile, satellite, "Nenhuma imagem encontrada.", date)
+        elif "S1A" in satellite:
+            self.logger.warning("Nenhuma imagem S1A encontrada.")
         else:
-            return {}
+            self.logger.warning("Nenhuma imagem disponível para os parâmetros fornecidos.")
+
+    def handle_error(self, e: Exception, satellite: str, tile: Optional[str], date: str):
+        """Tratamento centralizado de exceções."""
+        error_msg = str(e)
+        self.logger.error(f"Erro ao obter imagem do {satellite}: {error_msg}", exc_info=True)
+        self.resultmanager.log_error_csv(tile, satellite, error_msg, date)
