@@ -21,6 +21,7 @@ from brazil_data_cube.minio.MinioUploader import MinioUploader
 from brazil_data_cube.processors.tile_processor import TileProcessor
 from brazil_data_cube.utils.bdc_connection import BdcConnection
 from brazil_data_cube.utils.bounding_box_handler import BoundingBoxHandler
+from brazil_data_cube.services.db_writer import DatabaseRecorder
 
 with open(TILES_PATH_LANDSAT, "r", encoding="utf-8") as f:
     LANDSAT_TILES_POR_UF = json.load(f)
@@ -278,3 +279,13 @@ class ImageDownloader:
                 mission_info.bucket_prefix,
                 os.path.basename(path)).replace("\\", "/")
             uploader.upload_and_cleanup_file(path, object_name=object_name)
+
+        DatabaseRecorder.save_scene(
+                filename=os.path.basename(path),
+                mission=mission_info.mission,
+                sat=mission_info.sat,
+                tile_id=tile_id,
+                date=datetime.strptime(data_formatada, "%Y%m%d"),
+                minio_path=object_name,
+                bbox=bbox
+            )
