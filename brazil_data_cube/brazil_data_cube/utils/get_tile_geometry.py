@@ -40,10 +40,10 @@ class GeometryLoader:
 
         sat = satellite.upper()
 
-        if "S2" in sat:
+        if "S2A" in sat:
             tile_row = tiles_gdf[tiles_gdf["NAME"] == tile_id]
 
-        elif sat.startswith("L") and len(tile_id) == 6:
+        elif sat == "L8":
             # Landsat PATH/ROW (ex: "227067")
             try:
                 path = int(tile_id[:3])
@@ -53,7 +53,7 @@ class GeometryLoader:
                 self.logger.error(f"Tile Landsat inválido: {tile_id}")
                 return None
 
-        elif "CB" in sat or "S1A" in sat or "S1B" in sat:
+        elif "CB" in sat.upper() or "S1A" in sat:
             tile_row = tiles_gdf[tiles_gdf["tile"] == tile_id]
 
         if tile_row is None or tile_row.empty:
