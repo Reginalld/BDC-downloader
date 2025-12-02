@@ -13,7 +13,8 @@ from brazil_data_cube.config import (MINIO_ACCESS_KEY, MINIO_BUCKET,
                                      MINIO_ENDPOINT, MINIO_SECRET_KEY,
                                      MINIO_SECURE, REDUCTION_FACTOR,
                                      TILES_PATH_BDC_MD_V2, TILES_PATH_LANDSAT,
-                                     TILES_PATH_SENTINEL)
+                                     TILES_PATH_SENTINEL,SHAPEFILE_PATH,
+                                     SHAPEFILE_PATH_BDC_MD,SHAPEFILE_PATH_LANDSAT)
 from brazil_data_cube.downloader.download_bands import DownloadBands
 from brazil_data_cube.downloader.fetcher import SatelliteImageFetcher
 from brazil_data_cube.downloader.mission_info import MissionInfo
@@ -22,6 +23,7 @@ from brazil_data_cube.processors.tile_processor import TileProcessor
 from brazil_data_cube.utils.bdc_connection import BdcConnection
 from brazil_data_cube.utils.bounding_box_handler import BoundingBoxHandler
 from brazil_data_cube.services.db_writer import DatabaseRecorder
+from brazil_data_cube.api.database import AsyncSessionLocal 
 
 with open(TILES_PATH_LANDSAT, "r", encoding="utf-8") as f:
     LANDSAT_TILES_POR_UF = json.load(f)
@@ -33,11 +35,24 @@ with open(TILES_PATH_BDC_MD_V2, "r", encoding="utf-8") as f:
     BDC_MD_V2_TILES_POR_UF = json.load(f)
 
 
+TILES_PATHS_CONFIG = {
+            "CB4": SHAPEFILE_PATH_BDC_MD,
+            "L8": SHAPEFILE_PATH_LANDSAT,
+            "S1A": SHAPEFILE_PATH_BDC_MD,
+            "S2A": SHAPEFILE_PATH,
+        }
+
 class ImageDownloader:
     def __init__(self, logger: logging.Logger, output_dir: str):
         self.output_dir = output_dir
         self.logger = logger
         self.create_output()
+
+        self.db_recorder = DatabaseRecorder(
+            logger=logger, 
+            session_factory=None, 
+            tile_paths=TILES_PATHS_CONFIG
+        )
 
     def create_output(self) -> None:
         """Cria diretório de saída se ele não existir."""
@@ -255,12 +270,12 @@ class ImageDownloader:
 
         # Data de criação
         data_criacao = image_assets.properties.get("start_datetime", "")
-        data_formatada = (
-            datetime.fromisoformat(
-                data_criacao.replace("Z", "+00:00")).strftime("%Y%m%d")
-            if data_criacao
-            else "00000000"
-        )
+        if data_criacao:
+            dt_obj = datetime.fromisoformat(data_criacao.replace("Z", "+00:00"))
+            data_formatada = dt_obj.strftime("%Y%m%d")
+        else:
+            data_formatada = "00000000"
+            dt_obj = None # Usar None se não houver data
 
         prefix = f"{mission_info.sat}_{mission_info.mission}_" \
             f"{tile_id}_{data_formatada}_{mission_info.level}"
@@ -274,18 +289,81 @@ class ImageDownloader:
             mission_info.bucket_prefix,
         )
 
+        if download_files:
+            self.handle_upload_and_cataloging(
+                download_files=download_files,
+                uploader=uploader,
+                mission_info=mission_info,
+                tile_id=tile_id,
+                data_date_type=dt_obj, 
+                bbox=bbox,
+                )
+        else:
+            self.logger.warning("Nenhum arquivo para upload.")
+
+    def handle_upload_and_cataloging(
+        self,
+        download_files: dict,
+        uploader: MinioUploader,
+        mission_info: MissionInfo,
+        tile_id: str,
+        data_date_type: datetime, # Recebe o objeto datetime
+        bbox: list,
+    ) -> None:
+        """
+        Responsável por fazer o upload e catalogar, garantindo a consistência
+        transacional entre o Banco de Dados (PostGIS) e o Storage (MinIO).
+        """
+        
         for path in download_files.values():
+            filename = os.path.basename(path)
+            
+            # Constrói o path final no MinIO
             object_name = os.path.join(
                 mission_info.bucket_prefix,
-                os.path.basename(path)).replace("\\", "/")
-            uploader.upload_and_cleanup_file(path, object_name=object_name)
+                filename).replace("\\", "/")
+            
+            # Extração da Banda (Mantemos a lógica de string)
+            band_name = None
+            try:
+                # Ex: ..._NDVI.tif -> NDVI
+                band_name = filename.split("_")[-1].split(".")[0] 
+            except Exception:
+                pass
 
-        DatabaseRecorder.save_scene(
-                filename=os.path.basename(path),
-                mission=mission_info.mission,
-                sat=mission_info.sat,
-                tile_id=tile_id,
-                date=datetime.strptime(data_formatada, "%Y%m%d"),
-                minio_path=object_name,
-                bbox=bbox
-            )
+            db_succeeded = False
+            try:
+                self.logger.info(f"1/3. Gravando metadados no DB para {filename}...")
+                
+                self.db_recorder.save_scene(
+                    filename=filename,
+                    mission=mission_info.mission,
+                    sat=mission_info.sat,
+                    tile_id=tile_id,
+                    date_obj=data_date_type.date(),
+                    minio_path=object_name,
+                    bbox=bbox,
+                    band=band_name
+                )
+                db_succeeded = True
+            
+            except Exception as db_e:
+                # Se falhar no DB (ex: erro de conexão, disco), CANCELA o Upload
+                self.logger.error(f"1/3. Falha crítica ao salvar no DB para {filename}: {db_e}. Upload MinIO cancelado.")
+                continue # Vai para a próxima banda
+
+            if db_succeeded:
+                try:
+                    self.logger.info(f"2/3. Upload MinIO para {filename}...")
+                    uploader.upload_and_cleanup_file(path, object_name=object_name)
+                    self.logger.info(f"3/3. Processo concluído para {filename}.")
+
+                except Exception as minio_e:
+
+                    self.logger.error(f"3/3. Falha no Upload MinIO para {filename}: {minio_e}. Executando compensação (DELETE DB).")
+                    
+                    try:
+                        self.db_recorder.delete_scene(filename)
+                        # A mensagem de sucesso da exclusão virá do db_writer.py
+                    except Exception as delete_e:
+                        self.logger.critical(f"ERRO FATAL: Falha ao excluir do DB após falha no MinIO: {delete_e}")
