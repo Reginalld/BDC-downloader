@@ -11,6 +11,7 @@ from brazil_data_cube.downloader.download_bands import DownloadBands
 
 from ..utils.bounding_box_handler import BoundingBoxHandler
 from ..utils.logger import ResultManager
+from brazil_data_cube.utils.mission_info import MissionInfo
 
 
 class TileProcessor:
@@ -36,34 +37,6 @@ class TileProcessor:
         self.minio_uploader = minio_uploader
         self.min_geometry_cover = min_geometry_cover
 
-    def resolve_tile(self, grid_master, tile, satellite):
-        """Resolve grade + mission info."""
-        sat = satellite.upper()
-
-        if "S2" in sat:
-            grid = grid_master[grid_master["NAME"] == tile]
-            return grid, "s2", "SENTINEL2", "S2A", "L2A"
-
-        if "CB" in sat:
-            normalized = tile.replace("_", "/")
-            grid = grid_master[grid_master["tile"] == normalized]
-            return grid, "cbers", "CBERS", "CB4", "SR"
-
-        if "S1A" in sat:
-            normalized = tile.replace("_", "/")
-            grid = grid_master[grid_master["tile"] == normalized]
-            return grid, "s1", "SENTINEL1", "S1A", "SAR"
-
-        if "L8" in sat:
-            path, row = int(tile[:3]), int(tile[3:])
-            grid = grid_master[
-                (grid_master["PATH"] == path) &
-                (grid_master["ROW"] == row)
-            ]
-            return grid, "landsat", "LANDSAT", "L8", "LEVEL2"
-
-        return gpd.GeoDataFrame(), None, None, None, None
-
     def build_prefix(self, sat, mission, tile, data_criacao, level):
         """Monta prefixo para nome do arquivo."""
         if data_criacao:
@@ -76,9 +49,29 @@ class TileProcessor:
 
     def process_single_tile(self, tile, grid_master, satellite, start_date, end_date):
 
-        tile_grid, minio_prefix, mission, sat, level = \
-            self.resolve_tile(grid_master, tile, satellite)
+        mission_info = MissionInfo(satellite)
 
+        sat_upper = satellite.upper()
+        tile_grid = gpd.GeoDataFrame()
+
+        if "S2" in sat_upper:
+            tile_grid = grid_master[grid_master["NAME"] == tile]
+        elif "CB" in sat_upper:
+            normalized = tile.replace("_", "/")
+            tile_grid = grid_master[grid_master["tile"] == normalized]
+        elif "S1A" in sat_upper:
+            normalized = tile.replace("_", "/")
+            tile_grid = grid_master[grid_master["tile"] == normalized]
+        elif "L8" in sat_upper:
+            try:
+                path, row = int(tile[:3]), int(tile[3:])
+                tile_grid = grid_master[
+                    (grid_master["PATH"] == path) & (grid_master["ROW"] == row)
+                ]
+            except ValueError:
+                self.logger.error(f"Tile Landsat inválido: {tile}")
+                return None
+        
         if tile_grid.empty:
             self.logger.warning(f"Tile {tile} não encontrada.")
             return None
@@ -98,9 +91,9 @@ class TileProcessor:
             return None
 
         prefix = self.build_prefix(
-            sat, mission, tile,
+            mission_info.sat, mission_info.mission, tile,
             assets.properties.get("start_datetime", ""),
-            level
+            mission_info.level
         )
 
         # Download
@@ -110,13 +103,21 @@ class TileProcessor:
             prefix,
             satellite,
             self.minio_uploader,
-            minio_prefix
+            mission_info.bucket_prefix
         )
 
         # Upload
-        self.minio_uploader.upload_and_cleanup_batch(downloaded, minio_prefix)
+        
+        # Chamamos o método no ImageDownloader para executar a lógica final
+        self.downloader.upload_and_catalog_batch(
+            image_assets=assets,
+            download_files=downloaded,
+            tile_id=tile,
+            mission_info=mission_info,
+            bbox=bbox,
+            uploader=self.minio_uploader
+        )
 
-        # Output mosaic path
         mosaic_path = os.path.join(
             self.output_dir,
             f"{satellite}_{tile}_{start_date}_{end_date}_RGB.tif"
@@ -137,6 +138,7 @@ class TileProcessor:
             start = time.perf_counter()
 
             try:
+                print(satellite)
                 mosaic = self.process_single_tile(
                     tile, grid_master, satellite, start_date, end_date)
 
