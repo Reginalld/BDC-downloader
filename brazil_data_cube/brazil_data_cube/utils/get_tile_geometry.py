@@ -60,4 +60,9 @@ class GeometryLoader:
             self.logger.warning(f"Tile {tile_id} não encontrado no SHP.")
             return None
 
-        return tile_row.iloc[0].geometry
+        try:
+            transformed_row = tile_row.to_crs("EPSG:4326")
+            return transformed_row.iloc[0].geometry
+        except Exception as e:
+            self.logger.error(f"Erro na transformação de CRS para {tile_id}: {e}")
+            return tile_row.iloc[0].geometry

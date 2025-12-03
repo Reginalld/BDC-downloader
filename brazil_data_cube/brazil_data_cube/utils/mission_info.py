@@ -1,6 +1,7 @@
 # brazil_data_cube/downloader/mission_info.py
 
 import json
+import logging
 
 from brazil_data_cube.config import (SHAPEFILE_PATH, SHAPEFILE_PATH_BDC_MD,
                                      SHAPEFILE_PATH_LANDSAT,
@@ -22,9 +23,9 @@ class MissionInfo:
     """Centraliza as informações específicas de cada missão/satélite."""
 
     def __init__(self, satellite: str):
-        sat_lower = satellite.lower()
+        sat_lower = satellite.strip().lower()
 
-        if "landsat" in sat_lower:
+        if "l8" in sat_lower:
             self.tiles_por_uf = LANDSAT_TILES
             self.tile_grid_path = SHAPEFILE_PATH_LANDSAT
             self.bucket_prefix = "landsat"
@@ -57,4 +58,4 @@ class MissionInfo:
             self.level = "SAR"
 
         else:
-            raise ValueError(f"Satélite não reconhecido: {satellite}")
+            raise ValueError(f"Satélite não reconhecido: {sat_lower}")
