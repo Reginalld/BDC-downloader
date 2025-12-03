@@ -17,7 +17,7 @@ from brazil_data_cube.config import (MINIO_ACCESS_KEY, MINIO_BUCKET,
                                      SHAPEFILE_PATH_BDC_MD,SHAPEFILE_PATH_LANDSAT)
 from brazil_data_cube.downloader.download_bands import DownloadBands
 from brazil_data_cube.downloader.fetcher import SatelliteImageFetcher
-from brazil_data_cube.downloader.mission_info import MissionInfo
+from brazil_data_cube.utils.mission_info import MissionInfo
 from brazil_data_cube.minio.MinioUploader import MinioUploader
 from brazil_data_cube.processors.tile_processor import TileProcessor
 from brazil_data_cube.utils.bdc_connection import BdcConnection
@@ -367,3 +367,30 @@ class ImageDownloader:
                         # A mensagem de sucesso da exclusão virá do db_writer.py
                     except Exception as delete_e:
                         self.logger.critical(f"ERRO FATAL: Falha ao excluir do DB após falha no MinIO: {delete_e}")
+
+
+    def upload_and_catalog_batch(
+        self,
+        image_assets: dict,
+        download_files: dict,
+        tile_id: str,
+        mission_info: MissionInfo,
+        bbox: list,
+        uploader: any
+    ) -> None:
+        """
+        Recebe um lote de arquivos (download_files) e metadados, e orquestra o 
+        upload transacional e catalogação.
+        """
+        
+        data_criacao = image_assets.properties.get("start_datetime", "")
+        dt_obj = datetime.fromisoformat(data_criacao.replace("Z", "+00:00"))
+
+        self.handle_upload_and_cataloging(
+            download_files=download_files,
+            uploader=uploader, 
+            mission_info=mission_info,
+            tile_id=tile_id,
+            data_date_type=dt_obj,
+            bbox=bbox,
+        )
