@@ -144,7 +144,7 @@ class DownloadBands:
     def download_bands(
             self, image_assets, downloader,
             prefix, satellite, minio_uploader,
-            caminho_minio
+            caminho_minio, output_dir
             ):
         """
         Função responsável pela chamada de download de cada banda,
@@ -173,29 +173,29 @@ class DownloadBands:
             }
         elif "L8" in satellite.upper():
             bands = {
-                'ang': 'ANG',
-                'red': 'RED',
-                'blue': 'BLUE',
-                'green': 'GREEN',
-                'nir08': 'NIR08',
-                'st_qa': 'ST_QA',
-                'lwir11': 'LWIR11',
-                'swir16': 'SWIR16',
-                'swir22': 'SWIR22',
-                'coastal': 'COASTAL',
-                'mtl.txt': 'MTL.txt',
-                'mtl.xml': 'MTX.xml',
-                'st_drad': 'ST_DRAD',
-                'st_emis': 'ST_EMIS',
-                'st_emsd': 'ST_EMSD',
-                'st_trad': 'ST_TRAD',
-                'st_urad': 'ST_URAD',
-                'qa_pixel': 'QA_PIXEL',
-                'st_atran': 'ST_ATRAN',
-                'st_cdist': 'ST_CDIST',
-                'qa_radsat': 'QA_RADSAT',
+                # 'ang': 'ANG',
+                # 'red': 'RED',
+                # 'blue': 'BLUE',
+                # 'green': 'GREEN',
+                # 'nir08': 'NIR08',
+                # 'st_qa': 'ST_QA',
+                # 'lwir11': 'LWIR11',
+                # 'swir16': 'SWIR16',
+                # 'swir22': 'SWIR22',
+                # 'coastal': 'COASTAL',
+                # 'mtl.txt': 'MTL.txt',
+                # 'mtl.xml': 'MTX.xml',
+                # 'st_drad': 'ST_DRAD',
+                # 'st_emis': 'ST_EMIS',
+                # 'st_emsd': 'ST_EMSD',
+                # 'st_trad': 'ST_TRAD',
+                # 'st_urad': 'ST_URAD',
+                # 'qa_pixel': 'QA_PIXEL',
+                # 'st_atran': 'ST_ATRAN',
+                # 'st_cdist': 'ST_CDIST',
+                # 'qa_radsat': 'QA_RADSAT',
                 'thumbnail': 'THUMBNAIL',
-                'qa_aerosol': 'QA_AEROSOL'
+                # 'qa_aerosol': 'QA_AEROSOL'
             }
         elif "CB" in satellite.upper():
             bands = {
@@ -231,14 +231,21 @@ class DownloadBands:
                 if minio_uploader.object_exists(object_name, x=0):
                     continue
 
+                filepath_local = os.path.join(output_dir, filename)
+
                 try:
                     if satellite.upper() == "S1A":
                         filepath = self.download_with_resume(
                             image_assets[band], filename,
-                            output_dir=downloader.output_dir)
+                            output_dir=output_dir)
                     else:
-                        filepath = downloader.download(
-                            image_assets[band], filename)
+                        asset = image_assets[band]
+                        url = asset.href if hasattr(asset, "href") else asset
+
+                        filepath = downloader.download_file(
+                            url=url,
+                            output_path=filepath_local
+                        )
 
                     if filepath:
                         download_files[band] = filepath
