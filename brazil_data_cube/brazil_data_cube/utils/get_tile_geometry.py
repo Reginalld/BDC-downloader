@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 import fiona
 import geopandas as gpd
@@ -29,11 +28,13 @@ class GeometryLoader:
                     for rec in collection
                 ]
         except Exception as e:
-            self.logger.error(f"Erro ao carregar grade {self.tile_grid_path}: {e}")
+            self.logger.error(
+                f"Erro ao carregar grade {self.tile_grid_path}: {e}")
             return None
 
         attrs = pd.DataFrame([rec['properties'] for rec in records])
-        geoms = gpd.GeoSeries([rec['geometry'] for rec in records], crs=custom_crs)
+        geoms = gpd.GeoSeries(
+            [rec['geometry'] for rec in records], crs=custom_crs)
         tiles_gdf = gpd.GeoDataFrame(attrs, geometry=geoms)
 
         tile_row = None
@@ -48,7 +49,8 @@ class GeometryLoader:
             try:
                 path = int(tile_id[:3])
                 row = int(tile_id[3:])
-                tile_row = tiles_gdf[(tiles_gdf["PATH"] == path) & (tiles_gdf["ROW"] == row)]
+                tile_row = tiles_gdf[
+                    (tiles_gdf["PATH"] == path) & (tiles_gdf["ROW"] == row)]
             except ValueError:
                 self.logger.error(f"Tile Landsat inválido: {tile_id}")
                 return None
@@ -64,5 +66,6 @@ class GeometryLoader:
             transformed_row = tile_row.to_crs("EPSG:4326")
             return transformed_row.iloc[0].geometry
         except Exception as e:
-            self.logger.error(f"Erro na transformação de CRS para {tile_id}: {e}")
+            self.logger.error(
+                f"Erro na transformação de CRS para {tile_id}: {e}")
             return tile_row.iloc[0].geometry
