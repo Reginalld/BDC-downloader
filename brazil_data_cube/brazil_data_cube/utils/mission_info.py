@@ -1,7 +1,6 @@
 # brazil_data_cube/downloader/mission_info.py
 
 import json
-import logging
 
 from brazil_data_cube.config import (SHAPEFILE_PATH, SHAPEFILE_PATH_BDC_MD,
                                      SHAPEFILE_PATH_LANDSAT,
