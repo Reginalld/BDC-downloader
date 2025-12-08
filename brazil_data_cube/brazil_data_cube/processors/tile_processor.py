@@ -3,15 +3,13 @@ import os
 import time
 from datetime import datetime
 
-import fiona
 import geopandas as gpd
-from shapely.geometry import shape
 
 from brazil_data_cube.downloader.download_bands import DownloadBands
+from brazil_data_cube.utils.mission_info import MissionInfo
 
 from ..utils.bounding_box_handler import BoundingBoxHandler
 from ..utils.logger import ResultManager
-from brazil_data_cube.utils.mission_info import MissionInfo
 
 
 class TileProcessor:
@@ -45,9 +43,14 @@ class TileProcessor:
         else:
             data_formatada = "00000000"
         return f"{sat}_{mission}_{tile}_{data_formatada}_{level}"
-    
 
-    def process_single_tile(self, tile, grid_master, satellite, start_date, end_date):
+    def process_single_tile(
+            self,
+            tile,
+            grid_master,
+            satellite,
+            start_date,
+            end_date):
 
         mission_info = MissionInfo(satellite)
 
@@ -71,7 +74,7 @@ class TileProcessor:
             except ValueError:
                 self.logger.error(f"Tile Landsat inválido: {tile}")
                 return None
-        
+
         if tile_grid.empty:
             self.logger.warning(f"Tile {tile} não encontrada.")
             return None
@@ -99,23 +102,21 @@ class TileProcessor:
         # Download
         downloaded = DownloadBands(self.logger).download_bands(
             assets.assets,
-            self.downloader,
+            self.downloader.http_downloader,
             prefix,
             satellite,
             self.minio_uploader,
-            mission_info.bucket_prefix
+            mission_info.bucket_prefix,
+            self.output_dir
         )
 
         # Upload
-        
-        # Chamamos o método no ImageDownloader para executar a lógica final
-        self.downloader.upload_and_catalog_batch(
-            image_assets=assets,
+        self.downloader.scene_persister.persist_batch(
             download_files=downloaded,
-            tile_id=tile,
             mission_info=mission_info,
-            bbox=bbox,
-            uploader=self.minio_uploader
+            tile_id=tile,
+            start_datetime_str=assets.properties.get("start_datetime", ""),
+            bbox=bbox
         )
 
         mosaic_path = os.path.join(
