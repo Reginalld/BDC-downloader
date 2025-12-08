@@ -6,3 +6,4 @@ imagens/
 scanner-report/
 .coverage
 coverage.xml
+venv/
