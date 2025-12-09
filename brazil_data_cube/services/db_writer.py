@@ -35,6 +35,7 @@ class DatabaseRecorder:
         """
         Método Síncrono chamado pelo Downloader.
         """
+
         # Resolve Geometria
         geometry = self.resolve_geometry(sat, tile_id, bbox)
         geom_wkt = str(geometry) if geometry else None
@@ -53,6 +54,7 @@ class DatabaseRecorder:
             ))
         except Exception as e:
             self.logger.error(f"Erro crítico no DatabaseRecorder: {e}")
+            raise e
 
     async def save_async(
         self,
