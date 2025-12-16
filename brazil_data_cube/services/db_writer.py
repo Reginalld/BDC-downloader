@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from datetime import date
+from typing import Callable, Optional
 
 from shapely.geometry import box
 from sqlalchemy import delete
@@ -10,6 +11,7 @@ from sqlalchemy.orm import sessionmaker
 from brazil_data_cube.api.models.models_db import SatelliteScene
 from brazil_data_cube.config import DATABASE_URL
 from brazil_data_cube.utils.get_tile_geometry import GeometryLoader
+from brazil_data_cube.utils.exceptions import OrphanFileError
 
 
 class DatabaseRecorder:
@@ -30,11 +32,15 @@ class DatabaseRecorder:
         date_obj: date,
         minio_path: str,
         bbox: list,
-        band: str
+        band: str,
+        upload_callback: Callable[[], None]
     ):
         """
         Método Síncrono chamado pelo Downloader.
         """
+
+        # if "ZZZZZ" not in filename:
+        #     raise ValueError("TESTANDO")
 
         # Resolve Geometria
         geometry = self.resolve_geometry(sat, tile_id, bbox)
@@ -50,7 +56,8 @@ class DatabaseRecorder:
                 date_obj,
                 minio_path,
                 geom_wkt,
-                band
+                band,
+                upload_callback
             ))
         except Exception as e:
             self.logger.error(f"Erro crítico no DatabaseRecorder: {e}")
@@ -65,7 +72,8 @@ class DatabaseRecorder:
         date_obj,
         minio_path,
         geom_wkt,
-        band
+        band,
+        upload_callback
     ):
         """
         Lógica de inserção isolada.
@@ -74,32 +82,52 @@ class DatabaseRecorder:
         LocalSession = sessionmaker(
             bind=local_engine, class_=AsyncSession, expire_on_commit=False)
 
-        try:
-            async with LocalSession() as session:
-                try:
-                    new_scene = SatelliteScene(
-                        filename=filename,
-                        satellite=sat,
-                        mission=mission,
-                        tile_id=tile_id,
-                        date=date_obj,
-                        band=band,
-                        minio_path=minio_path,
-                        geometry=geom_wkt
-                    )
-                    session.add(new_scene)
-                    await session.commit()
-                    self.logger.info(f"Salvo no DB: {filename}")
-                except Exception as e:
-                    await session.rollback()
-                    if "unique constraint" in str(e).lower():
-                        self.logger.info(
-                            f"Imagem duplicada (ignorado): {filename}")
-                    else:
-                        self.logger.error(f"Erro SQL: {e}")
-        finally:
-            # Importante: fecha a conexão local para não vazar
-            await local_engine.dispose()
+        file_uploaded = False
+        async with LocalSession() as session:
+            try:
+                # 1. Prepara o objeto
+                new_scene = SatelliteScene(
+                    filename=filename,
+                    satellite=sat,
+                    mission=mission,
+                    tile_id=tile_id,
+                    date=date_obj,
+                    band=band,
+                    minio_path=minio_path,
+                    geometry=geom_wkt
+                )
+
+                # 2. Adiciona e verifica constraints (Flush)
+                session.add(new_scene)
+                await session.flush() 
+                
+                # 3. Faz o Upload (Callback)
+                # Se der erro aqui, pula pro except e file_uploaded continua False
+                await asyncio.to_thread(upload_callback)
+                file_uploaded = True 
+
+                # 4. Commit Explícito
+                # Se der erro aqui file_uploaded já é True
+                await session.commit()
+                
+                self.logger.info(f"Transação concluída (DB+MinIO): {filename}")
+
+            except Exception as e:
+                # Garante que o banco volte ao estado anterior imediatamente
+                await session.rollback()
+                self.logger.error(f"Rollback executado para {filename}: {e}")
+
+                # Lógica do Arquivo Órfão
+                if file_uploaded:
+                    self.logger.warning(f"Commit falhou após upload. Arquivo órfão: {minio_path}")
+                    # Lança erro especial para o ScenePersister limpar
+                    raise OrphanFileError(minio_path, e)
+                
+                # Se não foi órfão (erro no upload ou no flush), só repassa o erro original
+                raise e
+            
+            finally:
+                await local_engine.dispose()
 
     def resolve_geometry(self, sat: str, tile_id: str, bbox: list):
         """
@@ -178,3 +206,5 @@ class DatabaseRecorder:
             self.logger.error(f"Erro SQL ao excluir {filename}: {e}")
         finally:
             await local_engine.dispose()
+
+

@@ -4,10 +4,12 @@ import os
 import logging
 from datetime import datetime
 from typing import Optional
+import time
 
 from brazil_data_cube.minio.MinioUploader import MinioUploader
 from brazil_data_cube.services.db_writer import DatabaseRecorder
 from brazil_data_cube.utils.mission_info import MissionInfo
+from brazil_data_cube.utils.exceptions import OrphanFileError
 
 
 class ScenePersister:
@@ -34,7 +36,7 @@ class ScenePersister:
         individual para cada um.
         """
         # Converte a data uma única vez para o lote
-        dt_obj = self._parse_date(start_datetime_str)
+        dt_obj = self.parse_date(start_datetime_str)
 
         for local_path in download_files.values():
             self.persist_single_file(
@@ -66,12 +68,16 @@ class ScenePersister:
             mission_info.bucket_prefix, filename).replace("\\", "/")
 
         # Extrai nome da banda
-        band_name = self._extract_band_name(filename)
+        band_name = self.extract_band_name(filename)
 
-        db_succeeded = False
+        def upload_action():
+            self.logger.info(f"Iniciando Upload MinIO para {filename}...")
+            
+            self.uploader.upload_and_cleanup_file(
+                local_path, object_name=object_name
+            )
+
         try:
-            self.logger.info(
-                f"1/3. Gravando metadados no DB para {filename}...")
             self.db_recorder.save_scene(
                 filename=filename,
                 mission=mission_info.mission,
@@ -80,21 +86,26 @@ class ScenePersister:
                 date_obj=date_obj.date(),
                 minio_path=object_name,
                 bbox=bbox,
-                band=band_name
+                band=band_name,
+                upload_callback=upload_action # Passamos a função, não o resultado!
             )
-            # Assumimos sucesso se não houve exception síncrona imediata
-            db_succeeded = True
+            self.logger.info(f"Sucesso total (DB + MinIO) para {filename}")
 
-        except Exception as db_e:
-            self.logger.error(
-                f"1/3. Falha crítica ao salvar no DB para "
-                f"{filename}: {db_e}. Upload cancelado.")
-            return  # Aborta este arquivo
+        except OrphanFileError as orphan_e:
+            self.logger.error(f"Tratando arquivo órfão: {orphan_e.minio_path}")
+            try:
+                self.uploader.client.remove_object(
+                    self.uploader.bucket_name, 
+                    orphan_e.minio_path
+                )
+                self.logger.info("Arquivo órfão removido com sucesso.")
+            except Exception as del_err:
+                self.logger.critical(f"ERRO FATAL: Falha ao remover órfão: {del_err}")
 
-        if db_succeeded:
-            self._execute_upload_transaction(local_path, object_name, filename)
+        except Exception as e:
+            self.logger.error(f"Falha no processo de {filename}: {e}")
 
-    def _execute_upload_transaction(
+    def execute_upload_transaction(
             self,
             local_path: str,
             object_name: str,
@@ -117,13 +128,13 @@ class ScenePersister:
                     f"ERRO FATAL: Falha ao excluir do "
                     f"DB após falha no MinIO: {delete_e}")
 
-    def _extract_band_name(self, filename: str) -> Optional[str]:
+    def extract_band_name(self, filename: str) -> Optional[str]:
         try:
             return filename.split("_")[-1].split(".")[0]
         except Exception:
             return None
 
-    def _parse_date(self, date_str: str) -> datetime:
+    def parse_date(self, date_str: str) -> datetime:
         if not date_str:
             return datetime.now()
         try:
