@@ -227,8 +227,13 @@ class ImageDownloader:
         else:
             data_formatada = "00000000"
 
-        prefix = f"{mission_info.sat}_{mission_info.mission}_ \
-            {tile_id}_{data_formatada}_{mission_info.level}"
+        prefix = (
+            f"{mission_info.sat}_"
+            f"{mission_info.mission}_"
+            f"{tile_id}_"
+            f"{data_formatada}_"
+            f"{mission_info.level}"
+        )
 
         download_files = DownloadBands(self.logger).download_bands(
             image_assets.assets,
