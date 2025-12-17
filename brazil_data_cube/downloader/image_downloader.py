@@ -48,10 +48,8 @@ class ImageDownloader:
         self.logger = logger
         self.output_dir = output_dir
 
-        # 1. Inicializa o Downloader Burro
         self.http_downloader = HttpDownloader(logger)
 
-        # 2. Inicializa componentes de persistência
         self.db_recorder = DatabaseRecorder(
             logger=logger,
             session_factory=None,
@@ -66,7 +64,6 @@ class ImageDownloader:
             secure=MINIO_SECURE
         )
 
-        # 3. Inicializa o Serviço de Persistência (Service Layer)
         self.scene_persister = ScenePersister(
             logger=logger,
             db_recorder=self.db_recorder,

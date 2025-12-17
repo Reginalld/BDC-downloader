@@ -4,7 +4,6 @@ import os
 import logging
 from datetime import datetime
 from typing import Optional
-import time
 
 from brazil_data_cube.minio.MinioUploader import MinioUploader
 from brazil_data_cube.services.db_writer import DatabaseRecorder
@@ -72,7 +71,7 @@ class ScenePersister:
 
         def upload_action():
             self.logger.info(f"Iniciando Upload MinIO para {filename}...")
-            
+
             self.uploader.upload_and_cleanup_file(
                 local_path, object_name=object_name
             )
@@ -87,7 +86,7 @@ class ScenePersister:
                 minio_path=object_name,
                 bbox=bbox,
                 band=band_name,
-                upload_callback=upload_action # Passamos a função, não o resultado!
+                upload_callback=upload_action  # Passamos a função
             )
             self.logger.info(f"Sucesso total (DB + MinIO) para {filename}")
 
@@ -95,12 +94,13 @@ class ScenePersister:
             self.logger.error(f"Tratando arquivo órfão: {orphan_e.minio_path}")
             try:
                 self.uploader.client.remove_object(
-                    self.uploader.bucket_name, 
+                    self.uploader.bucket_name,
                     orphan_e.minio_path
                 )
                 self.logger.info("Arquivo órfão removido com sucesso.")
             except Exception as del_err:
-                self.logger.critical(f"ERRO FATAL: Falha ao remover órfão: {del_err}")
+                self.logger.critical(
+                    f"ERRO FATAL: Falha ao remover órfão: {del_err}")
 
         except Exception as e:
             self.logger.error(f"Falha no processo de {filename}: {e}")

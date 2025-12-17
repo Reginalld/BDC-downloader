@@ -152,7 +152,7 @@ class DownloadBands:
         """
         if "S2" in satellite.upper():
             bands = {
-                'B04': 'RED',
+                # 'B04': 'RED',
                 # 'B03': 'GREEN',
                 # 'B02': 'BLUE',
                 # 'AOT': 'AOT',
@@ -166,7 +166,7 @@ class DownloadBands:
                 # 'B12': 'B12',
                 # 'B8A': 'B8A',
                 # 'PVI': 'PVI',
-                # 'SCL': 'SCL',
+                'SCL': 'SCL',
                 # 'TCI': 'TCI',
                 # 'WVP': 'WVP',
                 # 'MTD_TL': 'MTD_TL'
@@ -201,14 +201,14 @@ class DownloadBands:
             bands = {
                 # 'BAND6': 'GREEN',
                 # 'EVI': 'EVI',
-                'NDVI': 'NDVI',
+                # 'NDVI': 'NDVI',
                 # 'BAND5': 'BLUE',
                 # 'BAND7': 'RED',
                 # 'BAND8': 'NIR08',
                 # 'CMASK': 'CMASK',
                 # 'CLEAROB': 'CLEAROB',
                 # 'TOTALOB': 'TOTALOB',
-                # 'thumbnail': 'THUMBNAIL',
+                'thumbnail': 'THUMBNAIL',
                 # 'PROVENANCE': 'PROVENANCE'
             }
         elif "S1A" in satellite.upper():

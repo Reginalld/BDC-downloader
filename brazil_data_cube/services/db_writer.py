@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from datetime import date
-from typing import Callable, Optional
+from typing import Callable
 
 from shapely.geometry import box
 from sqlalchemy import delete
@@ -99,17 +99,16 @@ class DatabaseRecorder:
 
                 # 2. Adiciona e verifica constraints (Flush)
                 session.add(new_scene)
-                await session.flush() 
-                
+                await session.flush()
+
                 # 3. Faz o Upload (Callback)
-                # Se der erro aqui, pula pro except e file_uploaded continua False
                 await asyncio.to_thread(upload_callback)
-                file_uploaded = True 
+                file_uploaded = True
 
                 # 4. Commit Explícito
                 # Se der erro aqui file_uploaded já é True
                 await session.commit()
-                
+
                 self.logger.info(f"Transação concluída (DB+MinIO): {filename}")
 
             except Exception as e:
@@ -119,13 +118,15 @@ class DatabaseRecorder:
 
                 # Lógica do Arquivo Órfão
                 if file_uploaded:
-                    self.logger.warning(f"Commit falhou após upload. Arquivo órfão: {minio_path}")
+                    self.logger.warning(
+                        f"Commit falhou após upload. "
+                        f"Arquivo órfão: {minio_path}")
                     # Lança erro especial para o ScenePersister limpar
                     raise OrphanFileError(minio_path, e)
-                
-                # Se não foi órfão (erro no upload ou no flush), só repassa o erro original
+
+                # Se não foi órfão, só repassa o erro original
                 raise e
-            
+
             finally:
                 await local_engine.dispose()
 
@@ -206,5 +207,3 @@ class DatabaseRecorder:
             self.logger.error(f"Erro SQL ao excluir {filename}: {e}")
         finally:
             await local_engine.dispose()
-
-
