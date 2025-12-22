@@ -10,7 +10,7 @@ from typing import Optional
 from brazil_data_cube.config import (MINIO_ACCESS_KEY, MINIO_BUCKET,
                                      MINIO_ENDPOINT, MINIO_SECRET_KEY,
                                      MINIO_SECURE, REDUCTION_FACTOR,
-                                     SHAPEFILE_PATH, SHAPEFILE_PATH_BDC_MD,
+                                     SHAPEFILE_PATH_SENTINEL, SHAPEFILE_PATH_BDC_MD,
                                      SHAPEFILE_PATH_LANDSAT,
                                      TILES_PATH_BDC_MD_V2, TILES_PATH_LANDSAT,
                                      TILES_PATH_SENTINEL)
@@ -39,7 +39,7 @@ TILES_PATHS_CONFIG = {
             "CB4": SHAPEFILE_PATH_BDC_MD,
             "L8": SHAPEFILE_PATH_LANDSAT,
             "S1A": SHAPEFILE_PATH_BDC_MD,
-            "S2A": SHAPEFILE_PATH,
+            "S2A": SHAPEFILE_PATH_SENTINEL,
         }
 
 

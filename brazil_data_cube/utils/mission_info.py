@@ -2,7 +2,7 @@
 
 import json
 
-from brazil_data_cube.config import (SHAPEFILE_PATH, SHAPEFILE_PATH_BDC_MD,
+from brazil_data_cube.config import (SHAPEFILE_PATH_SENTINEL, SHAPEFILE_PATH_BDC_MD,
                                      SHAPEFILE_PATH_LANDSAT,
                                      TILES_PATH_BDC_MD_V2, TILES_PATH_LANDSAT,
                                      TILES_PATH_SENTINEL)
@@ -34,7 +34,7 @@ class MissionInfo:
 
         elif "s2" in sat_lower:
             self.tiles_por_uf = SENTINEL_TILES
-            self.tile_grid_path = SHAPEFILE_PATH
+            self.tile_grid_path = SHAPEFILE_PATH_SENTINEL
             self.bucket_prefix = "s2"
             self.mission = "SENTINEL2"
             self.sat = "S2A"

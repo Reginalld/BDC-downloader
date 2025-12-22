@@ -12,7 +12,7 @@ DATA_DIR = ROOT_DIR / ""
 
 # Caminhos úteis
 IMAGES_DIR = DATA_DIR / "imagens"
-SHAPEFILE_PATH = DATA_DIR / "shapefile_ids" / "grade_sentinel_brasil.shp"
+SHAPEFILE_PATH_SENTINEL = DATA_DIR / "shapefile_ids" / "grade_sentinel_brasil.shp"
 SHAPEFILE_PATH_LANDSAT = DATA_DIR / "shapefile_ids" / "WRS2_descending.shp"
 SHAPEFILE_PATH_BDC_MD = DATA_DIR / "shapefile_ids" / "BDC_MD_V2.shp"
 LOG_DIR = DATA_DIR / "log"
