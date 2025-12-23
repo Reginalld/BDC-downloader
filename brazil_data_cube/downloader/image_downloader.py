@@ -44,18 +44,46 @@ TILES_PATHS_CONFIG = {
 
 
 class ImageDownloader:
+    """
+    Orquestrador principal do processo de ingestão de dados.
+
+    Esta classe atua como um 'Facade', coordenando a interação entre:
+    1.  **Fetcher:** Busca de metadados no STAC.
+    2.  **Geometry:** Cálculos espaciais e validação.
+    3.  **Downloader:** Transferência física de arquivos (HTTP).
+    4.  **Persister:** Gravação transacional em Banco e MinIO.
+
+    Attributes:
+        logger (logging.Logger): Logger para rastreamento de execução.
+        output_dir (str): Diretório base local para armazenamento temporário.
+        http_downloader (HttpDownloader): Cliente HTTP resiliente.
+        db_recorder (DatabaseRecorder): Gerenciador de banco de dados.
+        uploader (MinioUploader): Cliente S3/MinIO.
+        scene_persister (ScenePersister): Coordenador de transações.
+    """
+
     def __init__(self, logger: logging.Logger, output_dir: str):
+        """
+        Inicializa o orquestrador e injeta as dependências de infraestrutura.
+
+        Args:
+            logger (logging.Logger): Instância de log configurada.
+            output_dir (str): Caminho local onde os downloads temporários serão salvos.
+        """
         self.logger = logger
         self.output_dir = output_dir
 
+        # Inicializa cliente HTTP
         self.http_downloader = HttpDownloader(logger)
 
+        # Inicializa conexão com Banco de Dados
         self.db_recorder = DatabaseRecorder(
             logger=logger,
             session_factory=None,
             tile_paths=TILES_PATHS_CONFIG
         )
 
+        # Inicializa cliente de Object Storage
         self.uploader = MinioUploader(
             endpoint=MINIO_ENDPOINT,
             access_key=MINIO_ACCESS_KEY,
@@ -64,6 +92,7 @@ class ImageDownloader:
             secure=MINIO_SECURE
         )
 
+        # Inicializa o coordenador de persistência (maestro da transação)
         self.scene_persister = ScenePersister(
             logger=logger,
             db_recorder=self.db_recorder,
@@ -97,13 +126,32 @@ class ImageDownloader:
         min_geometry_cover: float
     ) -> None:
         """
-        Ponto de entrada principal. Configura conexões e roteia para
-        processamento de tile único ou lista de estados.
+        Ponto de entrada (Entrypoint) da execução.
+
+        Configura as conexões necessárias e decide a estratégia de execução:
+        1. **Por Estado:** Se `tile_id` for uma UF (ex: "BA"), delega para processamento em lote.
+        2. **Por Tile/Coordenada:** Caso contrário, executa o fluxo unitário.
+
+        Args:
+            satellite (str): Identificador do satélite.
+            lat (Optional[float]): Latitude (se tile_id for None).
+            lon (Optional[float]): Longitude (se tile_id for None).
+            tile_id (Optional[str]): ID do Tile ou Sigla da UF.
+            radius_km (Optional[float]): Raio de busca (para coordenadas).
+            start_date (str): Início do período (YYYY-MM-DD).
+            end_date (str): Fim do período (YYYY-MM-DD).
+            max_cloud_cover (float): % Máxima de nuvens permitida.
+            min_geometry_cover (float): % Mínima de interseção geométrica.
         """
+        # Conexão STAC (lazy loading)
         bdc_conn = BdcConnection(self.logger).get_connection()
         fetcher = SatelliteImageFetcher(self.logger, bdc_conn)
+
+        # Handler geométrico com fator de redução para margem de segurança
         bbox_handler = BoundingBoxHandler(
             self.logger, reduction_factor=REDUCTION_FACTOR)
+        
+        # Carrega configs específicas da missão
         mission_info = MissionInfo(satellite)
 
         # Prepara estrutura de pastas
@@ -123,6 +171,7 @@ class ImageDownloader:
             )
             return
 
+        # Fluxo padrão (Tile único ou Coordenada)
         self.process_single_tile(
             tile_id,
             lat,
@@ -150,7 +199,25 @@ class ImageDownloader:
         max_cloud_cover: float,
         min_geometry_cover: float,
     ) -> None:
-        """Delega o loop de tiles do estado para o TileProcessor."""
+        """
+        Delega o processamento em lote de um estado para o TileProcessor.
+
+        Esta separação permite que o `TileProcessor` implemente otimizações específicas,
+        como carregar o grid mestre na memória uma única vez.
+
+        Args:
+            uf (str): Sigla do Estado (ex: 'SP').
+            mission_info (MissionInfo): Configurações da missão.
+            fetcher (SatelliteImageFetcher): Cliente de busca.
+            uploader (MinioUploader): Cliente MinIO.
+            start_date (str): Data inicial.
+            end_date (str): Data final.
+            max_cloud_cover (float): Filtro de nuvem.
+            min_geometry_cover (float): Filtro de geometria.
+
+        Raises:
+            ValueError: Se não houver tiles mapeados para a UF no satélite.
+        """
         tile_list = mission_info.tiles_por_uf.get(uf)
         if not tile_list:
             msg = f"Nenhum tile encontrado para {uf} ({mission_info.mission})"
@@ -158,6 +225,8 @@ class ImageDownloader:
             raise ValueError(msg)
 
         self.logger.info(f"Iniciando tiles do estado {uf}...")
+
+        # Instancia o processador de lote
         TileProcessor(
             self.logger,
             fetcher,
@@ -186,7 +255,30 @@ class ImageDownloader:
         min_geometry_cover: float,
     ) -> None:
         """
-        Orquestra o fluxo: BBox -> Fetch Metadata -> Download -> Persist.
+        Executa o pipeline completo de ingestão para uma única cena.
+
+        O pipeline segue as etapas:
+        1. **Resolução de Geometria:** Calcula BBox a partir de TileID ou Lat/Lon.
+        2. **Busca (Fetch):** Encontra a melhor imagem no STAC (Strategy Pattern).
+        3. **Refinamento (Radar):** Ajusta geometria se for Sentinel-1.
+        4. **Nomenclatura:** Gera prefixo canônico para os arquivos.
+        5. **Download:** Baixa as bandas selecionadas.
+        6. **Persistência:** Salva no Banco e MinIO atomicamente.
+
+        Args:
+            tile_id (Optional[str]): ID do Tile (pode ser None se usar coords).
+            lat (Optional[float]): Latitude.
+            lon (Optional[float]): Longitude.
+            radius_km (Optional[float]): Raio de busca.
+            bbox_handler (BoundingBoxHandler): Utilitário de geometria.
+            fetcher (SatelliteImageFetcher): Utilitário de busca STAC.
+            uploader (MinioUploader): Utilitário MinIO.
+            mission_info (MissionInfo): Dados da missão.
+            tile_grid_path (str): Caminho do shapefile.
+            start_date (str): Data inicial.
+            end_date (str): Data final.
+            max_cloud_cover (float): Filtro de nuvem.
+            min_geometry_cover (float): Filtro de geometria.
         """
         # 1. Obter Bounding Box
         bbox, lat, lon, _ = bbox_handler.obter_bounding_box(
@@ -205,6 +297,7 @@ class ImageDownloader:
             return
 
         # 3. Ajustes de Tile ID e BBox (S1A footprints)
+        # O Sentinel-1 não tem grid fixo, então extraímos o BBox real do footprint da imagem encontrada
         if "S1A" in mission_info.sat and tile_id is None:
             extracted_bbox = bbox_handler.extract_bbox_from_footprint(
                 image_assets)
@@ -212,10 +305,12 @@ class ImageDownloader:
                 bbox = extracted_bbox
                 tile_id = bbox_handler.make_tile_id_from_bbox(bbox)
 
+        # Fallback: Se ainda não tiver ID, tenta pegar do metadado da imagem
         if not tile_id:
             tile_id = image_assets.properties.get("bdc:tiles", [""])[0]
 
         # 4. Formatação de Data/Prefixo
+        # Padroniza a data para YYYYMMDD para uso no nome do arquivo
         data_criacao = image_assets.properties.get("start_datetime", "")
         if data_criacao:
             dt_obj = datetime.fromisoformat(
@@ -246,6 +341,8 @@ class ImageDownloader:
             self.logger.warning("Nenhum arquivo para upload.")
             return
 
+        # 5. Persistência Transacional (Atomicidade)
+        # Envia para o Persister gerenciar a transação DB <-> MinIO
         self.scene_persister.persist_batch(
             download_files=download_files,
             mission_info=mission_info,
