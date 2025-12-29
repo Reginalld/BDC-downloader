@@ -19,6 +19,19 @@ COLLECTION_MAP = {
 
 
 class SatelliteImageFetcher:
+    """
+    Cliente especializado para busca e seleção de imagens na API STAC.
+
+    Esta classe atua como um 'Broker' de metadados, abstraindo a complexidade
+    de buscar e escolher a melhor imagem disponível. Ela implementa uma lógica
+    de roteamento (Strategy Pattern implícito) para diferenciar os critérios
+    de qualidade entre sensores Ópticos e de Radar.
+
+    Attributes:
+        logger (logging.Logger): Instância para registro de logs.
+        connection (Any): Cliente `pystac_client`.
+        resultmanager (ResultManager): Utilitário para auditoria de falhas.
+    """
     def __init__(self, logger: logging.Logger, connection: any):
         self.connection = connection
         self.logger = logger
@@ -29,20 +42,28 @@ class SatelliteImageFetcher:
                     min_geometry_cover: float,
                     tile: Optional[str]) -> Optional[Dict[str, Any]]:
         """
-        Busca uma imagem usando filtro de nuvem e geometria.
+        Orquestra a busca da melhor imagem aplicando filtros de negócio.
+
+        O método decide qual estratégia de seleção utilizar:
+        1. Radar (S1A): Delega para `select_best_radar_image`. Foca na
+           interseção geométrica, ignorando nuvens.
+        2. Óptico (S2, L8, CB): Delega para `select_best_optical_image`.
+           Foca no menor percentual de nuvens e validação geométrica.
 
         Args:
-            satelite (str): Nome do satélite
-            bounding_box (list): Coordenadas [minx, miny, maxx, maxy]
-            start_date (str): Data início YYYY-MM-DD
-            end_date (str): Data fim YYYY-MM-DD
-            max_cloud_cover (float): Máximo de cobertura de nuvem (%)
-            tile_grid_path (str): Caminho do shapefile de tiles
-            tile (Optional[str]): ID do tile (opcional)
+            satellite (str): Identificador do satélite (ex: 'S2', 'S1A').
+            bounding_box (List[float]): BBox [minx, miny, maxx, maxy].
+            start_date (str): Data inicial 'YYYY-MM-DD'.
+            end_date (str): Data final 'YYYY-MM-DD'.
+            max_cloud_cover (float): Limite máximo de nuvens (0-100).
+            tile_grid_path (str): Caminho do Shapefile de referência.
+            min_geometry_cover (float): % mínima de cobertura do tile (0-100).
+            tile (Optional[str]): ID do tile alvo (opcional).
 
         Returns:
-            Optional[Dict]: Assets da imagem ou None se não encontrar
+            Optional[Dict[str, Any]]: O Item STAC selecionado ou None.
         """
+        # Traduz 'S2' para 'S2_L2A-1', etc.
         collection_id = self.get_collection_id(satellite)
 
         self.logger.info(f"Buscando imagens do "
@@ -50,6 +71,7 @@ class SatelliteImageFetcher:
 
         try:
             # 1. Busca inicial no STAC
+            # Traz todos os candidatos no intervalo de tempo e espaço
             items = self.search_items(
                 collection_id, bounding_box, start_date,
                 end_date, max_cloud_cover
@@ -73,7 +95,15 @@ class SatelliteImageFetcher:
             return None
 
     def get_collection_id(self, satellite_name: str) -> str:
-        """Resolve o ID da coleção baseado no nome do satélite."""
+        """
+        Resolve o ID técnico da coleção STAC.
+
+        Args:
+            satellite_name (str): Nome normalizado (ex: 'S2').
+
+        Returns:
+            str: ID da coleção (ex: 'S2_L2A-1').
+        """
         for key, collection in COLLECTION_MAP.items():
             if key in satellite_name.upper():
                 return collection
@@ -81,7 +111,24 @@ class SatelliteImageFetcher:
 
     def search_items(self, collection_id: str, bbox: list, start: str,
                      end: str, max_cloud: float) -> List[Any]:
-        """Executa a busca crua na API STAC."""
+        """
+        Executa a consulta 'crua' na API do STAC.
+
+        Nota:
+            Embora alguns servidores aceitem filtro de nuvem na query,
+            o servidor do BDC não apresenta funcionamento,
+            (Sempre necessário testes para ver se passou a aceitar).
+
+        Args:
+            collection_id (str): Coleção alvo.
+            bbox (List[float]): Área de interesse.
+            start (str): Data ISO.
+            end (str): Data ISO.
+            max_cloud (float): Usado no filtro posterior.
+
+        Returns:
+            List[Any]: Lista de itens STAC brutos.
+        """
 
         search_result = self.connection.search(
             bbox=bbox,
@@ -94,17 +141,31 @@ class SatelliteImageFetcher:
             self,
             items: List[Any],
             bounding_box: list) -> Optional[Dict]:
-        """Lógica específica para Sentinel-1."""
+        """
+        Estratégia de Seleção para Radar (Sentinel-1).
+
+        Calcula a área de interseção entre o footprint da imagem e o BBox do usuário. # noqa: E501
+        Seleciona a imagem que maximiza essa área (maior cobertura útil).
+
+        Args:
+            items (List[Any]): Lista de candidatos.
+            bounding_box (List[float]): BBox alvo.
+
+        Returns:
+            Optional[Dict]: Melhor item segundo critério geométrico.
+        """
+        # Cria polígono do BBox desejado
         user_poly = box(*bounding_box)
         scored_items: List[Tuple[float, Any]] = []
 
         for item in items:
             try:
+                # Extrai geometria real da imagem (que é torta/rotacionada)
                 footprint_poly = self.extract_footprint(item)
                 if not footprint_poly:
                     continue
 
-                # Calcula cobertura
+                # Calcula % de cobertura: (Interseção / Área Desejada)
                 intersection = user_poly.intersection(footprint_poly).area
                 coverage = intersection / user_poly.area
                 scored_items.append((coverage, item))
@@ -128,7 +189,18 @@ class SatelliteImageFetcher:
         return best_item
 
     def extract_footprint(self, item: Any) -> Optional[Any]:
-        """Extrai geometria do item STAC (suporta GeoFootprint e WKT)."""
+        """
+        Normaliza a extração de geometria do item STAC.
+
+        Suporta tanto 'GeoFootprint' (GeoJSON) quanto 'Footprint' (WKT),
+        com limpeza de prefixos SRID comuns em bancos PostGIS.
+
+        Args:
+            item (Any): Item STAC.
+
+        Returns:
+            Optional[Any]: Geometria Shapely pronta para cálculo.
+        """
         props = item.properties
         if "GeoFootprint" in props:
             return shape(props["GeoFootprint"])
@@ -147,8 +219,26 @@ class SatelliteImageFetcher:
             max_cloud_cover: float,
             start_date: str) -> Optional[Dict]:
 
-        """Lógica para satélites ópticos (filtro de nuvem e tile grid)."""
+        """
+        Estratégia de Seleção para Ópticos (S2, L8, CBERS).
 
+        Critérios de Aceite:
+        1. Geometria: Deve cobrir no mínimo `min_geo_cover`% do tile.
+        2. Nuvens: Deve ter menos que `max_cloud_cover`% de nuvens.
+        3. Qualidade: Dentre as válidas, escolhe a com MENOR nuvem.
+
+        Args:
+            items (List[Any]): Candidatos.
+            tile (Optional[str]): ID do Tile.
+            satellite (str): Satélite.
+            tile_grid_path (str): Caminho do Grid.
+            min_geo_cover (float): Limite de geometria.
+            max_cloud_cover (float): Limite de nuvem.
+            start_date (str): Data para log.
+
+        Returns:
+            Optional[Dict]: Melhor item ou None.
+        """
         # Instancia utilitário apenas se necessário
         geo_utils = GeometryUtils(self.logger, tile_grid_path)
 

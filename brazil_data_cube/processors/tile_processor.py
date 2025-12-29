@@ -2,6 +2,7 @@ import logging
 import os
 import time
 from datetime import datetime
+from typing import Optional, List
 
 import geopandas as gpd
 
@@ -13,6 +14,25 @@ from ..utils.logger import ResultManager
 
 
 class TileProcessor:
+    """
+    Processador de lote otimizado para ingestão massiva de tiles.
+
+    Diferente do processamento unitário, esta classe é projetada para iterar
+    listas extensas (ex: todos os tiles do Estado), otimizando o I/O de disco
+    ao carregar a malha de tiles (Grid Master) apenas uma vez na memória.
+
+    Attributes:
+        logger (logging.Logger): Logger configurado.
+        fetcher (SatelliteImageFetcher): Cliente de busca STAC.
+        downloader (ImageDownloader): Referência ao orquestrador principal.
+        output_dir (str): Diretório base para outputs.
+        tile_grid_path (str): Caminho do shapefile da grade.
+        max_cloud_cover (float): Limite de nuvens.
+        minio_uploader (MinioUploader): Cliente de upload.
+        min_geometry_cover (float): Limite de geometria.
+        bbox_handler (BoundingBoxHandler): Utilitário de geometria.
+        result_manager (ResultManager): Gerenciador de métricas e logs.
+    """
     def __init__(
         self,
         logger: logging.Logger,
@@ -35,8 +55,29 @@ class TileProcessor:
         self.minio_uploader = minio_uploader
         self.min_geometry_cover = min_geometry_cover
 
-    def build_prefix(self, sat, mission, tile, data_criacao, level):
-        """Monta prefixo para nome do arquivo."""
+    def build_prefix(
+        self,
+        sat: str,
+        mission: str,
+        tile: str,
+        data_criacao: str,
+        level: str
+         ) -> str:
+        """
+        Constrói o nome canônico do arquivo (Prefixo).
+
+        Padroniza: SAT_MISSAO_TILE_DATA_NIVEL.
+
+        Args:
+            sat (str): Nome curto (ex: S2).
+            mission (str): Nome da missão (ex: SENTINEL2).
+            tile (str): ID do tile.
+            data_criacao (str): Data ISO 8601.
+            level (str): Nível de processamento (ex: L2A).
+
+        Returns:
+            str: Prefixo formatado (ex: S2_SENTINEL2_T22KGA_20230615_L2A).
+        """
         if data_criacao:
             dt = datetime.fromisoformat(data_criacao.replace("Z", "+00:00"))
             data_formatada = dt.strftime("%Y%m%d")
@@ -46,26 +87,50 @@ class TileProcessor:
 
     def process_single_tile(
             self,
-            tile,
-            grid_master,
-            satellite,
-            start_date,
-            end_date):
+            tile: str,
+            grid_master: gpd.GeoDataFrame,
+            satellite: str,
+            start_date: str,
+            end_date: str) -> Optional[str]:
+        """
+        Executa o pipeline de ingestão para um único tile dentro do lote.
+
+        1. Filtro de Memória: Busca a geometria do tile no `grid_master` pré-carregado. # noqa: E501
+        2. Cálculo de BBox: Reduz o polígono para evitar overlaps.
+        3. Busca: Consulta o STAC.
+        4. Download e Upload: Baixa e persiste os arquivos.
+
+        Args:
+            tile (str): ID do Tile (ex: 'T22KGA' ou '227067').
+            grid_master (gpd.GeoDataFrame): O Shapefile completo carregado na RAM.
+            satellite (str): Identificador do satélite.
+            start_date (str): Data inicial.
+            end_date (str): Data final.
+
+        Returns:
+            Optional[str]: Caminho do mosaico gerado (ou None em caso de falha/skip).
+        """
 
         mission_info = MissionInfo(satellite)
 
         sat_upper = satellite.upper()
         tile_grid = gpd.GeoDataFrame()
 
+        # --- Lógica de Filtragem no DataFrame (Pandas/GeoPandas) ---
+        # Como o grid_master contém TODOS os tiles do Brasil, filtramos
+        # apenas a linha que corresponde ao ID atual. A coluna varia por satélite. # noqa: E501
         if "S2" in sat_upper:
+            # Sentinel-2 usa a coluna 'NAME' (MGRS)
             tile_grid = grid_master[grid_master["NAME"] == tile]
         elif "CB" in sat_upper:
+            # CBERS e S1A usam 'tile' com separador (ex: 221/067 -> 221_067)
             normalized = tile.replace("_", "/")
             tile_grid = grid_master[grid_master["tile"] == normalized]
         elif "S1A" in sat_upper:
             normalized = tile.replace("_", "/")
             tile_grid = grid_master[grid_master["tile"] == normalized]
         elif "L8" in sat_upper:
+            # Landsat usa PATH e ROW inteiros
             try:
                 path, row = int(tile[:3]), int(tile[3:])
                 tile_grid = grid_master[
@@ -79,7 +144,7 @@ class TileProcessor:
             self.logger.warning(f"Tile {tile} não encontrada.")
             return None
 
-        # Bounding box
+        # Converte para WGS84 e calcula BBox com margem de segurança
         tile_grid_wgs84 = tile_grid.to_crs("EPSG:4326")
         bbox = self.bbox_handler.calculate_reduced_bbox(tile_grid_wgs84)
 
@@ -125,7 +190,26 @@ class TileProcessor:
         )
         return mosaic_path
 
-    def process_tile_list(self, tiles, satellite, start_date, end_date):
+    def process_tile_list(
+        self,
+        tiles: List[str],
+        satellite: str,
+        start_date: str,
+        end_date: str
+    ) -> None:
+        """
+        Ponto de entrada para processamento em lote.
+
+        Otimização: Carrega o arquivo Shapefile de grade (que pode ser grande)
+        uma única vez no início do processo e passa a referência em memória
+        para as iterações subsequentes.
+
+        Args:
+            tiles (List[str]): Lista de IDs de tiles para processar.
+            satellite (str): Identificador do satélite.
+            start_date (str): Data inicial.
+            end_date (str): Data final.
+        """
 
         grid_master = self.bbox_handler.load_tile_grid(self.tile_grid_path)
         if grid_master is None:

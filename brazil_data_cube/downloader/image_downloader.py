@@ -10,7 +10,8 @@ from typing import Optional
 from brazil_data_cube.config import (MINIO_ACCESS_KEY, MINIO_BUCKET,
                                      MINIO_ENDPOINT, MINIO_SECRET_KEY,
                                      MINIO_SECURE, REDUCTION_FACTOR,
-                                     SHAPEFILE_PATH_SENTINEL, SHAPEFILE_PATH_BDC_MD,
+                                     SHAPEFILE_PATH_SENTINEL,
+                                     SHAPEFILE_PATH_BDC_MD,
                                      SHAPEFILE_PATH_LANDSAT,
                                      TILES_PATH_BDC_MD_V2, TILES_PATH_LANDSAT,
                                      TILES_PATH_SENTINEL)
@@ -68,7 +69,7 @@ class ImageDownloader:
 
         Args:
             logger (logging.Logger): Instância de log configurada.
-            output_dir (str): Caminho local onde os downloads temporários serão salvos.
+            output_dir (str): Caminho local para imagens.
         """
         self.logger = logger
         self.output_dir = output_dir
@@ -129,8 +130,8 @@ class ImageDownloader:
         Ponto de entrada (Entrypoint) da execução.
 
         Configura as conexões necessárias e decide a estratégia de execução:
-        1. **Por Estado:** Se `tile_id` for uma UF (ex: "BA"), delega para processamento em lote.
-        2. **Por Tile/Coordenada:** Caso contrário, executa o fluxo unitário.
+        1. Por Estado: Se `tile_id` for uma UF, delega para lote.
+        2. Por Tile/Coordenada: Caso contrário, executa o fluxo unitário.
 
         Args:
             satellite (str): Identificador do satélite.
@@ -150,7 +151,7 @@ class ImageDownloader:
         # Handler geométrico com fator de redução para margem de segurança
         bbox_handler = BoundingBoxHandler(
             self.logger, reduction_factor=REDUCTION_FACTOR)
-        
+
         # Carrega configs específicas da missão
         mission_info = MissionInfo(satellite)
 
@@ -202,7 +203,7 @@ class ImageDownloader:
         """
         Delega o processamento em lote de um estado para o TileProcessor.
 
-        Esta separação permite que o `TileProcessor` implemente otimizações específicas,
+        Esta separação permite que o `TileProcessor` implemente otimizações específicas, # noqa: E501
         como carregar o grid mestre na memória uma única vez.
 
         Args:
@@ -258,12 +259,12 @@ class ImageDownloader:
         Executa o pipeline completo de ingestão para uma única cena.
 
         O pipeline segue as etapas:
-        1. **Resolução de Geometria:** Calcula BBox a partir de TileID ou Lat/Lon.
-        2. **Busca (Fetch):** Encontra a melhor imagem no STAC (Strategy Pattern).
-        3. **Refinamento (Radar):** Ajusta geometria se for Sentinel-1.
-        4. **Nomenclatura:** Gera prefixo canônico para os arquivos.
-        5. **Download:** Baixa as bandas selecionadas.
-        6. **Persistência:** Salva no Banco e MinIO atomicamente.
+        1. Resolução de Geometria: Calcula BBox a partir de TileID ou Lat/Lon.
+        2. Busca (Fetch): Encontra a melhor imagem no STAC (Strategy Pattern).
+        3. Refinamento (Radar): Ajusta geometria se for Sentinel-1.
+        4. Nomenclatura: Gera prefixo canônico para os arquivos.
+        5. Download: Baixa as bandas selecionadas.
+        6. Persistência: Salva no Banco e MinIO atomicamente.
 
         Args:
             tile_id (Optional[str]): ID do Tile (pode ser None se usar coords).
@@ -297,7 +298,7 @@ class ImageDownloader:
             return
 
         # 3. Ajustes de Tile ID e BBox (S1A footprints)
-        # O Sentinel-1 não tem grid fixo, então extraímos o BBox real do footprint da imagem encontrada
+        # O Sentinel-1 não tem grid fixo, então extraímos o BBox real do footprint da imagem encontrada # noqa: E501
         if "S1A" in mission_info.sat and tile_id is None:
             extracted_bbox = bbox_handler.extract_bbox_from_footprint(
                 image_assets)

@@ -6,6 +6,17 @@ from tqdm import tqdm
 
 
 class DownloadBands:
+    """
+    Gerenciador de materialização de ativos (assets).
+
+    Responsável por baixar arquivos do Stac para local.
+    Sua principal característica é o 'Resume': capacidade de
+    continuar downloads interrompidos sem corromper o arquivo, essencial para
+    arquivos ZIP de Radar (>1GB).
+
+    Attributes:
+        logger (logging.Logger): Instância de logger.
+    """
     def __init__(self, logger: logging.Logger):
         self.logger = logger
 
@@ -18,16 +29,42 @@ class DownloadBands:
             timeout: int = 60
             ) -> str:
         """
-        Download com suporte a resume, lógica de status code corrigida e
-        verificação de tamanho total primeiro.
+        Executa download resiliente com suporte a retomada (HTTP Range).
+
+        Implementa um loop de controle que verifica o tamanho do arquivo local
+        versus remoto. Se o arquivo local for menor, solicita apenas os bytes
+        faltantes (Header `Range: bytes=N-`).
+
+        Logica de Controle:
+        1. Handshake: Obtém tamanho total (`Content-Length`) via GET inicial.
+        2. Verificação: Compara com arquivo em disco.
+        3. Retomada: Se incompleto, envia header `Range`.
+        4. Validação: Aceita HTTP 206 (Partial) ou 200 (Reinício).
+
+        Args:
+            asset (Any): Objeto asset do STAC ou URL direta.
+            filename (str): Nome do arquivo de destino.
+            output_dir (str): Diretório local de salvamento.
+            chunk_size (int, optional): Tamanho do buffer de escrita.
+            timeout (int, optional): Timeout de socket em segundos.
+
+        Returns:
+            str: Caminho completo do arquivo baixado.
+
+        Raises:
+            requests.exceptions.RequestException: Em caso de falha fatal de rede. # noqa: E501
         """
         os.makedirs(output_dir, exist_ok=True)
         output_file = os.path.join(output_dir, filename)
+
+        # Extrai URL (compatibilidade com pystac Item ou string pura)
         url = asset.href if hasattr(asset, "href") else asset
 
         total_size = 0
 
+        # Etapa 1: Obter o tamanho total do arquivo remoto
         try:
+            # stream=True baixa apenas headers inicialmente
             initial_response = requests.get(url, stream=True, timeout=timeout)
             initial_response.raise_for_status()  # Garante que o link é válido
 
@@ -45,16 +82,20 @@ class DownloadBands:
                 )
             raise
 
+        # Loop de Download/Retomada
         while True:
+            # Verifica progresso atual
             existing_size = os.path.getsize(output_file) \
                 if os.path.exists(output_file) else 0
 
+            # Condição de Saída 1: Arquivo já está completo
             if total_size > 0 and existing_size >= total_size:
                 self.logger.info(
                     f"Arquivo {filename} já está completo "
                     f"({existing_size}/{total_size} bytes). Pulando."
                     )
 
+                # Sanity Check.
                 if existing_size > total_size:
                     self.logger.error(
                         f"CORRUPÇÃO DETECTADA: Arquivo local {filename} "
@@ -66,6 +107,7 @@ class DownloadBands:
                 else:
                     break
 
+            # Prepara headers para Resume
             headers = {}
             if existing_size > 0:
                 headers["Range"] = f"bytes={existing_size}-"
@@ -78,6 +120,7 @@ class DownloadBands:
                 response = requests.get(
                     url, stream=True, timeout=timeout, headers=headers)
 
+                # Lógica de validação do status HTTP
                 if existing_size > 0:
                     if response.status_code == 206:
                         mode = 'ab'
@@ -102,6 +145,7 @@ class DownloadBands:
                         response.raise_for_status()
                     mode = 'wb'
 
+                # Escrita do arquivo com barra de progresso
                 with open(output_file, mode) as fout:
                     with tqdm(
                         total=total_size, initial=existing_size,
@@ -114,6 +158,7 @@ class DownloadBands:
                                 fout.write(chunk)
                                 pbar.update(len(chunk))
 
+                # Condição de Saída 2: Download finalizou neste ciclo
                 current_size = os.path.getsize(output_file)
                 if total_size > 0 and current_size < total_size:
                     self.logger.warning(
@@ -147,9 +192,24 @@ class DownloadBands:
             caminho_minio, output_dir
             ):
         """
-        Função responsável pela chamada de download de cada banda,
-        evitando repetição onde necessário.
+        Orquestra o download em lote das bandas de uma cena.
+
+        Aplica filtragem (Whitelist) para baixar apenas arquivos relevantes
+        e verifica existência no MinIO (Idempotência) antes de baixar.
+
+        Args:
+            image_assets (Dict[str, Any]): Dicionário de assets do item STAC.
+            downloader (HttpDownloader): Cliente HTTP padrão.
+            prefix (str): Nome base padronizado para os arquivos.
+            satellite (str): Identificador do satélite.
+            minio_uploader (MinioUploader): Cliente MinIO para verificação de existência de imagem. # noqa: E501
+            caminho_minio (str): Caminho "virtual" dentro do bucket de destino.
+            output_dir (str): Diretório local de saída.
+
+        Returns:
+            Dict[str, str]: Mapa de {nome_banda: caminho_local} dos arquivos baixados.
         """
+        # Configuração de Whitelist (Bandas de Interesse)
         if "S2" in satellite.upper():
             bands = {
                 # 'B04': 'RED',
@@ -219,26 +279,31 @@ class DownloadBands:
         download_files = {}
 
         for band, suffix in bands.items():
+            # Verifica se a banda desejada existe no item STAC atual
             if band in image_assets:
+                # Define extensão baseada no tipo de dado
                 filename = f"{prefix}_{suffix}.tif"
                 if satellite == "S1A":
                     filename = f"{prefix}_{suffix}.zip"
                 object_name = os.path.join(
                    caminho_minio, filename
                     ).replace("\\", "/")
-                print(object_name)
-                # Verifica se já existe no MinIO
+                # Se o arquivo já está salvo e no MinIO, não baixa novamente.
                 if minio_uploader.object_exists(object_name, x=0):
                     continue
 
                 filepath_local = os.path.join(output_dir, filename)
 
                 try:
+                    # Roteamento de Estratégia de Download
                     if satellite.upper() == "S1A":
+                        # Radar: Arquivos gigantes (ZIP) -> Usa Resume manual
                         filepath = self.download_with_resume(
                             image_assets[band], filename,
                             output_dir=output_dir)
                     else:
+                        # Óptico: Arquivos menores -> Usa HttpDownloader padrão
+                        # Extrai URL do objeto Asset
                         asset = image_assets[band]
                         url = asset.href if hasattr(asset, "href") else asset
 
