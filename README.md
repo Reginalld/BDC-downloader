@@ -77,6 +77,8 @@ MINIO_BUCKET=seu_bucket
 
 MINIO_SECURE=false
 
+DATABASE_URL="postgresql+asyncpg://bdcuser:bdcpass@localhost:5431/bdcdb"
+
 
 ## Observações
 
