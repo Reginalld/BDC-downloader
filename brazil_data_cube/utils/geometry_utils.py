@@ -8,6 +8,22 @@ from shapely.geometry import shape
 
 
 class GeometryUtils:
+    """
+    Validador de qualidade geométrica para seleção de imagens.
+
+    Esta classe é responsável por garantir que uma imagem retornada pelo catálogo STAC
+    realmente cobre a área de interesse do usuário de forma significativa.
+
+    Problema Resolvido:
+    Muitas vezes, uma imagem de satélite cruza a bounding box do tile apenas na
+    borda (ex: 1% de sobreposição). Sem esta validação, o sistema baixaria
+    gigabytes de dados inúteis. Esta classe calcula a porcentagem exata de
+    interseção para filtrar esses casos.
+
+    Attributes:
+        logger (logging.Logger): Logger configurado.
+        tile_grid_path (str): Caminho para o Shapefile de referência da grade.
+    """
     def __init__(self, logger: logging.Logger, tile_grid_path: str):
         self.tile_grid_path = tile_grid_path
         self.logger = logger
@@ -20,17 +36,28 @@ class GeometryUtils:
         min_geometry_cover: float
     ) -> bool:
         """
-        Valida se a imagem cobre mais de 82% de geometria do tile especificado.
+        Calcula se a cobertura útil da imagem atende ao requisito mínimo.
+
+        Fluxo de Validação:
+        1. Carrega a grade (Shapefile) de referência.
+        2. Localiza o polígono exato do Tile (S2, L8 ou CBERS).
+        3. Extrai a geometria do Item STAC.
+        4. Reprojeção: Converte a geometria do STAC (geralmente WGS84) para
+           o mesmo CRS da grade (ex: UTM), permitindo cálculos de área em metros.
+        5. Cálculo: (Área Interseção / Área Total do Tile) >= Limite.
 
         Args:
-            item (Any): Item STAC retornado pelo catálogo
-            tile_id (str): ID do tile Sentinel-2
+            item (Any): Item STAC (objeto PySTAC ou dict) contendo geometria.
+            tile_id (str): Identificador do tile (ex: 'T22KGA', '227067').
+            satellite (str): Identificador do satélite (para regra de busca).
+            min_geometry_cover (float): Percentual mínimo (0 a 100).
 
         Returns:
-            bool: True se passou no teste, False caso contrário
+            bool: True se a imagem cobre área suficiente, False caso contrário.
         """
         try:
-            # Usa o método de carregamento robusto para ler a grade sem erros
+            # Usa fiona + geopandas manualmente para evitar erros de driver
+            # comuns ao ler shapefiles complexos diretamente com gpd.read_file
             with fiona.open(self.tile_grid_path, 'r') as collection:
                 custom_crs_wkt = collection.crs_wkt
                 records = [{'properties': rec['properties'],
@@ -69,16 +96,27 @@ class GeometryUtils:
                                 f"encontrado na grade {satellite}.")
             return False
 
-        # Geometrias
+        # 1. Obtém geometria do tile (já no CRS correto do shapefile)
         tile_geom = tile_row.iloc[0].geometry
+
+        # 2. Obtém geometria da imagem (STAC retorna em Lat/Lon - EPSG:4326)    
         item_geom = shape(item.geometry)
+
+        # 3. Reprojeção Dinâmica:
+        # É crucial converter a geometria da imagem para o mesmo sistema de
+        # coordenadas do tile (ex: UTM). Calcular área em Lat/Lon (graus) vs
+        # Projetada (metros) geraria resultados errados.
         item_geom_reprojected = gpd.GeoSeries(
             [item_geom], crs="EPSG:4326").to_crs(tiles_gdf.crs
                                                  )
+
+        # 4. Cálculo da Interseção
         intersection = tile_geom.intersection(item_geom_reprojected.iloc[0])
 
+        # Normaliza porcentagem (0-100 -> 0.0-1.0)
         percentage_geometry = min_geometry_cover / 100
 
+        # Verifica se a razão da interseção satisfaz o requisito
         if intersection.area / tile_geom.area >= percentage_geometry:
             return True
 

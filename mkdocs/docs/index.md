@@ -51,3 +51,24 @@ Bem-vindo à documentação técnica.
     options:
       show_root_heading: true
       show_source: true
+
+## Bounding_box_handler
+
+::: brazil_data_cube.utils.bounding_box_handler.BoundingBoxHandler
+    options:
+      show_root_heading: true
+      show_source: true
+
+## Geometry_utils
+
+::: brazil_data_cube.utils.geometry_utils.GeometryUtils
+    options:
+      show_root_heading: true
+      show_source: true
+
+## Get_tile_geometry
+
+::: brazil_data_cube.utils.get_tile_geometry.GeometryLoader
+    options:
+      show_root_heading: true
+      show_source: true
