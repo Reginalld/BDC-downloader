@@ -1,6 +1,6 @@
 # Brazil Data Cube - STAC Downloader
 
-Este projeto realiza o download e gerenciamento de imagens de satélite via STAC (SpatioTemporal Asset Catalog), com suporte a Sentinel-2 e Landsat, utilizando FastAPI, MinIO e processamento geoespacial com Python.
+Este projeto realiza o download e gerenciamento de imagens de satélite via STAC (SpatioTemporal Asset Catalog), com suporte a Sentinel-2, Landsat, CBERS e Sentinel-1, utilizando FastAPI, MinIO e processamento geoespacial com Python.
 
 
 ## Requisitos
